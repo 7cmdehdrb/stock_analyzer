@@ -14,6 +14,8 @@
         sessionStorage.setItem('portfolioData', JSON.stringify({
             name: "{{ portfolio.name }}",
             date: "{{ portfolio.created_at.strftime('%Y-%m-%d %H:%M') }}",
+            owner_nickname: "{{ owner_nickname }}",
+            is_owner: {{ 'true' if is_owner else 'false' }},
             ...data
         }));
         

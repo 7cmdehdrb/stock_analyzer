@@ -1,6 +1,23 @@
-Flask==3.0.0
-pandas==2.1.4
-yfinance==0.2.33
-numpy==1.26.2
+yfinance==0.2.66
 flask-admin>=1.6.0
 flask-sqlalchemy>=3.0.0
+
+Flask==3.0.0
+# pandas 2.2.x 는 Py3.12용 공식 휠 제공
+pandas==2.2.3
+# numpy 2.0+ 는 Py3.12 공식 휠 제공
+numpy>=2.0,<3
+python-dotenv==1.1.1
+
+# FastAPI 관련 의존성 (app2.py용)
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+sqladmin>=0.16.0
+python-multipart>=0.0.6
+aiofiles>=23.2.1
+jinja2>=3.1.2
+
+# 빌드 체인 최신화 권장
+pip>=24.2
+setuptools>=70
+wheel>=0.41

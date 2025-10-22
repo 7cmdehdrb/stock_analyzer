@@ -1,0 +1,774 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>마이페이지 - 포트폴리오 성과 분석기</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        /* 네비게이션 바 */
+        .navbar {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 0;
+            margin: 0 0 0 0;
+            border-radius: 15px 15px 0 0;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .navbar-content {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 15px 30px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .navbar-title {
+            color: white;
+            font-size: 24px;
+            font-weight: 700;
+            text-decoration: none;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+
+        .navbar-title:hover {
+            opacity: 0.9;
+        }
+
+        .navbar-links {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .navbar-link {
+            color: white;
+            text-decoration: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-weight: 500;
+            transition: background 0.2s;
+            white-space: nowrap;
+        }
+
+        .navbar-link:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .navbar-link.active {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        .content {
+            background: white;
+            border-radius: 0 0 15px 15px;
+            padding: 40px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            margin-top: 0;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 30px;
+            font-size: 32px;
+        }
+
+        /* 모바일 반응형 - 헤더 및 컨텐츠 */
+        @media (max-width: 768px) {
+            .navbar-content {
+                padding: 10px 15px;
+            }
+
+            .navbar-title {
+                font-size: 18px;
+            }
+
+            .navbar-links {
+                gap: 5px;
+            }
+
+            .navbar-link {
+                padding: 6px 12px;
+                font-size: 14px;
+            }
+
+            .content {
+                padding: 25px 15px;
+            }
+
+            h1 {
+                font-size: 26px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .navbar-title {
+                font-size: 16px;
+            }
+
+            .navbar-link {
+                padding: 5px 10px;
+                font-size: 12px;
+            }
+
+            .content {
+                padding: 20px 12px;
+            }
+
+            h1 {
+                font-size: 22px;
+            }
+        }
+
+        .section {
+            margin-bottom: 40px;
+        }
+
+        .section-title {
+            font-size: 24px;
+            color: #667eea;
+            margin-bottom: 20px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .card {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 0;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .info-row:last-child {
+            border-bottom: none;
+        }
+
+        .info-label {
+            font-weight: 600;
+            color: #666;
+            font-size: 14px;
+        }
+
+        .info-value {
+            font-size: 16px;
+            color: #333;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-secondary {
+            background: white;
+            color: #667eea;
+            border: 2px solid #667eea;
+        }
+
+        .btn-secondary:hover {
+            background: #f8f9fa;
+        }
+
+        .btn-danger {
+            background: #dc3545;
+        }
+
+        .btn-danger:hover {
+            box-shadow: 0 4px 12px rgba(220, 53, 69, 0.4);
+        }
+
+        input[type="text"] {
+            padding: 10px;
+            border: 2px solid #e0e0e0;
+            border-radius: 6px;
+            font-size: 14px;
+            width: 300px;
+            transition: border-color 0.3s;
+        }
+
+        input[type="text"]:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .portfolio-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 20px;
+        }
+
+        .portfolio-card {
+            background: white;
+            border: 2px solid #e0e0e0;
+            border-radius: 12px;
+            padding: 20px;
+            transition: all 0.3s;
+            position: relative;
+        }
+
+        .portfolio-card:hover {
+            border-color: #667eea;
+            box-shadow: 0 4px 16px rgba(102, 126, 234, 0.2);
+            transform: translateY(-4px);
+        }
+        
+        .portfolio-card-clickable {
+            cursor: pointer;
+        }
+
+        .portfolio-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            margin-bottom: 15px;
+            margin-top: 35px;
+            gap: 10px;
+        }
+
+        .portfolio-name {
+            font-size: 18px;
+            font-weight: 700;
+            color: #333;
+            margin-bottom: 5px;
+            word-break: break-word;
+        }
+
+        .portfolio-date {
+            font-size: 12px;
+            color: #999;
+        }
+
+        .portfolio-badge {
+            background: #667eea;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+
+        .portfolio-metrics {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        /* 모바일 반응형 - 마이페이지 */
+        @media (max-width: 768px) {
+            .portfolio-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .portfolio-card {
+                padding: 15px;
+            }
+
+            .portfolio-card-header {
+                flex-direction: column;
+                gap: 8px;
+                margin-top: 30px;
+            }
+
+            .portfolio-name {
+                font-size: 16px;
+            }
+
+            .portfolio-badge {
+                font-size: 11px;
+                padding: 3px 10px;
+                align-self: flex-start;
+            }
+
+            .portfolio-metrics {
+                grid-template-columns: 1fr;
+                gap: 8px;
+            }
+
+            .metric-item {
+                padding: 8px;
+            }
+
+            .metric-value {
+                font-size: 14px;
+            }
+
+            .delete-btn {
+                top: 10px;
+                right: 10px;
+                padding: 5px 10px;
+                font-size: 11px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .portfolio-card {
+                padding: 12px;
+            }
+
+            .portfolio-name {
+                font-size: 14px;
+            }
+
+            .portfolio-date {
+                font-size: 11px;
+            }
+
+            .portfolio-badge {
+                font-size: 10px;
+                padding: 2px 8px;
+            }
+
+            .metric-label {
+                font-size: 10px;
+            }
+
+            .metric-value {
+                font-size: 13px;
+            }
+
+            .delete-btn {
+                padding: 4px 8px;
+                font-size: 10px;
+            }
+        }
+
+        .metric-item {
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+
+        .metric-label {
+            font-size: 11px;
+            color: #666;
+            margin-bottom: 4px;
+        }
+
+        .metric-value {
+            font-size: 16px;
+            font-weight: 700;
+            color: #333;
+        }
+
+        .metric-value.positive {
+            color: #28a745;
+        }
+
+        .metric-value.negative {
+            color: #dc3545;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #999;
+        }
+
+        .empty-state-icon {
+            font-size: 64px;
+            margin-bottom: 20px;
+        }
+
+        .logout-btn {
+            margin-top: 20px;
+        }
+
+        .delete-btn {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: #dc3545;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            padding: 6px 12px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            z-index: 10;
+        }
+
+        .delete-btn:hover {
+            background: #c82333;
+            transform: scale(1.05);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- 네비게이션 바 -->
+        <div class="navbar">
+            <div class="navbar-content">
+                <a href="/" class="navbar-title">📊 포트폴리오 성과 분석기</a>
+                <div class="navbar-links">
+                    <a href="/" class="navbar-link">분석하기</a>
+                    <a href="/ranking" class="navbar-link">랭킹보기</a>
+                    <a href="/mypage" class="navbar-link active" id="authLink">마이페이지</a>
+                </div>
+            </div>
+        </div>
+
+        <div class="content">
+            <h1>👤 마이페이지</h1>
+
+            <!-- 내 정보 섹션 -->
+            <div class="section">
+                <div class="section-title">📋 내 정보</div>
+                <div class="card">
+                    <div class="info-row">
+                        <span class="info-label">이메일</span>
+                        <span class="info-value" id="userEmail">-</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">닉네임</span>
+                        <div style="display: flex; gap: 10px; align-items: center;">
+                            <input type="text" id="nicknameInput" style="display: none;">
+                            <span class="info-value" id="userNickname">-</span>
+                            <button class="btn btn-secondary" id="editNicknameBtn" onclick="toggleNicknameEdit()">
+                                수정
+                            </button>
+                        </div>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">가입 유형</span>
+                        <span class="info-value" id="accountType">-</span>
+                    </div>
+                    <div class="info-row logout-btn">
+                        <button class="btn btn-danger" onclick="logout()">로그아웃</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 내 포트폴리오 섹션 -->
+            <div class="section">
+                <div class="section-title">📊 내 포트폴리오 (<span id="portfolioCount">0</span>)</div>
+                <div class="portfolio-grid" id="portfolioGrid">
+                    <div class="empty-state">
+                        <div class="empty-state-icon">📭</div>
+                        <p>저장된 포트폴리오가 없습니다.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let editMode = false;
+        let originalNickname = '';
+
+        // 페이지 로드 시 사용자 정보 및 포트폴리오 로드
+        window.addEventListener('DOMContentLoaded', async function() {
+            await loadUserInfo();
+            await loadPortfolios();
+        });
+
+        // 사용자 정보 로드
+        async function loadUserInfo() {
+            try {
+                const response = await fetch('/api/me');
+                const data = await response.json();
+
+                if (!data.logged_in) {
+                    alert('로그인이 필요합니다.');
+                    window.location.href = '/login';
+                    return;
+                }
+
+                document.getElementById('userEmail').textContent = data.user.email;
+                document.getElementById('userNickname').textContent = data.user.nickname;
+                document.getElementById('nicknameInput').value = data.user.nickname;
+                originalNickname = data.user.nickname;
+
+                const accountTypeMap = {
+                    'local': '🔐 로컬 가입',
+                    'google': '🔍 Google',
+                    'kakao': '💬 Kakao'
+                };
+                document.getElementById('accountType').textContent = accountTypeMap[data.user.account_type] || data.user.account_type;
+
+            } catch (error) {
+                console.error('사용자 정보 로드 오류:', error);
+                alert('사용자 정보를 불러올 수 없습니다.');
+            }
+        }
+
+        // 닉네임 수정 토글
+        function toggleNicknameEdit() {
+            const nicknameSpan = document.getElementById('userNickname');
+            const nicknameInput = document.getElementById('nicknameInput');
+            const editBtn = document.getElementById('editNicknameBtn');
+
+            if (!editMode) {
+                // 수정 모드로 전환
+                nicknameSpan.style.display = 'none';
+                nicknameInput.style.display = 'block';
+                nicknameInput.focus();
+                editBtn.textContent = '저장';
+                // btn-secondary 클래스 제거
+                editBtn.classList.remove('btn-secondary');
+                editMode = true;
+            } else {
+                // 저장
+                saveNickname();
+            }
+        }
+
+        // 닉네임 저장
+        async function saveNickname() {
+            const newNickname = document.getElementById('nicknameInput').value.trim();
+
+            if (!newNickname) {
+                alert('닉네임을 입력해주세요.');
+                return;
+            }
+
+            if (newNickname === originalNickname) {
+                cancelNicknameEdit();
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/update-nickname', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ nickname: newNickname })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    alert('✅ ' + data.message);
+                    document.getElementById('userNickname').textContent = newNickname;
+                    originalNickname = newNickname;
+                    cancelNicknameEdit();
+                    
+                    // 네비게이션 바 업데이트
+                    document.getElementById('authLink').textContent = `👤 ${newNickname}`;
+                } else {
+                    alert('❌ ' + data.error);
+                }
+            } catch (error) {
+                console.error('닉네임 변경 오류:', error);
+                alert('❌ 닉네임 변경 중 오류가 발생했습니다.');
+            }
+        }
+
+        // 닉네임 수정 취소
+        function cancelNicknameEdit() {
+            const nicknameSpan = document.getElementById('userNickname');
+            const nicknameInput = document.getElementById('nicknameInput');
+            const editBtn = document.getElementById('editNicknameBtn');
+
+            nicknameInput.value = originalNickname;
+            nicknameSpan.style.display = 'inline';
+            nicknameInput.style.display = 'none';
+            editBtn.textContent = '수정';
+            // btn 클래스는 유지하고 btn-secondary만 추가
+            if (!editBtn.classList.contains('btn-secondary')) {
+                editBtn.classList.add('btn-secondary');
+            }
+            editMode = false;
+        }
+
+        // 포트폴리오 로드
+        async function loadPortfolios() {
+            try {
+                const response = await fetch('/api/my-portfolios');
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || '포트폴리오를 불러올 수 없습니다.');
+                }
+
+                const portfolios = data.portfolios;
+                document.getElementById('portfolioCount').textContent = portfolios.length;
+
+                const grid = document.getElementById('portfolioGrid');
+                
+                if (portfolios.length === 0) {
+                    grid.innerHTML = `
+                        <div class="empty-state">
+                            <div class="empty-state-icon">📭</div>
+                            <p>저장된 포트폴리오가 없습니다.</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                grid.innerHTML = '';
+                portfolios.forEach(portfolio => {
+                    grid.appendChild(createPortfolioCard(portfolio));
+                });
+
+            } catch (error) {
+                console.error('포트폴리오 로드 오류:', error);
+                alert('포트폴리오를 불러올 수 없습니다.');
+            }
+        }
+
+        // 포트폴리오 카드 생성
+        function createPortfolioCard(portfolio) {
+            const card = document.createElement('div');
+            card.className = 'portfolio-card';
+
+            const metrics = portfolio.metrics || {};
+            const summary = portfolio.summary || {};
+
+            const cagr = metrics.cagr || 0;
+            const sharpe = metrics.sharpe_ratio || 0;
+            const currentValue = summary.current_value_with_cash || 0;
+            const totalReturn = summary.total_return_with_cash || 0;
+
+            card.innerHTML = `
+                <button class="delete-btn" onclick="deletePortfolio(event, ${portfolio.id}, '${portfolio.name.replace(/'/g, "\\'")}')">
+                    🗑️ 삭제
+                </button>
+                <div class="portfolio-card-clickable" onclick="window.location.href = '/portfolio/${portfolio.id}'">
+                    <div class="portfolio-card-header">
+                        <div>
+                            <div class="portfolio-name">${portfolio.name}</div>
+                            <div class="portfolio-date">생성: ${portfolio.created_at}</div>
+                        </div>
+                        <div class="portfolio-badge">${portfolio.benchmark}</div>
+                    </div>
+                    <div style="margin: 15px 0; padding-top: 15px; border-top: 1px solid #f0f0f0;">
+                        <div style="font-size: 12px; color: #666; margin-bottom: 5px;">총 평가액 (${portfolio.base_currency})</div>
+                        <div style="font-size: 24px; font-weight: 700; color: #333;">
+                            ${currentValue.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                        </div>
+                    <div style="font-size: 14px; margin-top: 5px;" class="${totalReturn >= 0 ? 'metric-value positive' : 'metric-value negative'}">
+                        ${totalReturn >= 0 ? '+' : ''}${totalReturn}%
+                    </div>
+                </div>
+                <div class="portfolio-metrics">
+                    <div class="metric-item">
+                        <div class="metric-label">CAGR</div>
+                        <div class="metric-value ${cagr >= 0 ? 'positive' : 'negative'}">
+                            ${cagr >= 0 ? '+' : ''}${cagr}%
+                        </div>
+                    </div>
+                    <div class="metric-item">
+                        <div class="metric-label">Sharpe</div>
+                        <div class="metric-value">
+                            ${sharpe.toFixed(3)}
+                        </div>
+                    </div>
+                    <div class="metric-item">
+                        <div class="metric-label">Sortino</div>
+                        <div class="metric-value">
+                            ${(metrics.sortino_ratio || 0).toFixed(3)}
+                        </div>
+                    </div>
+                    <div class="metric-item">
+                        <div class="metric-label">Alpha</div>
+                        <div class="metric-value ${(metrics.alpha || 0) >= 0 ? 'positive' : 'negative'}">
+                            ${(metrics.alpha || 0) >= 0 ? '+' : ''}${(metrics.alpha || 0)}%
+                        </div>
+                    </div>
+                </div>
+                </div>
+            `;
+
+            return card;
+        }
+
+        // 포트폴리오 삭제
+        async function deletePortfolio(event, portfolioId, portfolioName) {
+            // 이벤트 버블링 방지 (카드 클릭 이벤트와 분리)
+            event.stopPropagation();
+            
+            const confirmed = confirm(`⚠️ 정말 "${portfolioName}" 포트폴리오를 삭제하시겠습니까?\n\n이 작업은 되돌릴 수 없습니다.`);
+            if (!confirmed) return;
+
+            try {
+                const response = await fetch(`/api/delete-portfolio/${portfolioId}`, {
+                    method: 'DELETE'
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    alert('✅ ' + data.message);
+                    // 포트폴리오 목록 새로고침
+                    await loadPortfolios();
+                } else {
+                    alert('❌ ' + data.error);
+                }
+            } catch (error) {
+                console.error('포트폴리오 삭제 오류:', error);
+                alert('❌ 포트폴리오 삭제 중 오류가 발생했습니다.');
+            }
+        }
+
+        // 로그아웃
+        async function logout() {
+            const confirmed = confirm('로그아웃하시겠습니까?');
+            if (!confirmed) return;
+
+            try {
+                const response = await fetch('/api/logout', {
+                    method: 'POST'
+                });
+
+                if (response.ok) {
+                    alert('로그아웃되었습니다.');
+                    window.location.href = '/';
+                }
+            } catch (error) {
+                console.error('로그아웃 오류:', error);
+                alert('로그아웃 중 오류가 발생했습니다.');
+            }
+        }
+    </script>
+</body>
+</html>

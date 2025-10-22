@@ -1,0 +1,254 @@
+{% extends 'admin/master.html' %}
+
+{% block body %}
+<div class="container-fluid">
+    <h1>📊 Portfolio Admin Dashboard</h1>
+    <hr>
+
+    <!-- 주요 통계 카드 -->
+    <div class="row" style="margin-bottom: 30px;">
+        <div class="col-md-3">
+            <div class="panel panel-primary">
+                <div class="panel-heading">
+                    <h3 class="panel-title">👥 총 회원 수</h3>
+                </div>
+                <div class="panel-body" style="font-size: 36px; text-align: center; padding: 30px;">
+                    <strong>{{ stats.total_users }}</strong>
+                    <div style="font-size: 14px; color: #666; margin-top: 10px;">
+                        오늘: <span style="color: #5cb85c;">+{{ stats.today_users }}</span> | 
+                        이번 주: <span style="color: #5cb85c;">+{{ stats.week_users }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="panel panel-success">
+                <div class="panel-heading">
+                    <h3 class="panel-title">📁 총 포트폴리오</h3>
+                </div>
+                <div class="panel-body" style="font-size: 36px; text-align: center; padding: 30px;">
+                    <strong>{{ stats.total_portfolios }}</strong>
+                    <div style="font-size: 14px; color: #666; margin-top: 10px;">
+                        오늘: <span style="color: #5cb85c;">+{{ stats.today_portfolios }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="panel panel-info">
+                <div class="panel-heading">
+                    <h3 class="panel-title">💾 캐시된 티커</h3>
+                </div>
+                <div class="panel-body" style="font-size: 36px; text-align: center; padding: 30px;">
+                    <strong>{{ stats.cached_tickers }}</strong>
+                    <div style="font-size: 14px; color: #666; margin-top: 10px;">
+                        종목 수
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="panel panel-warning">
+                <div class="panel-heading">
+                    <h3 class="panel-title">📈 캐시 레코드</h3>
+                </div>
+                <div class="panel-body" style="font-size: 36px; text-align: center; padding: 30px;">
+                    <strong>{{ "{:,}".format(stats.cached_records) }}</strong>
+                    <div style="font-size: 14px; color: #666; margin-top: 10px;">
+                        일일 데이터
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 회원 유형 통계 -->
+    <div class="row" style="margin-bottom: 30px;">
+        <div class="col-md-12">
+            <div class="panel panel-default">
+                <div class="panel-heading">
+                    <h3 class="panel-title">👤 회원 유형별 분포</h3>
+                </div>
+                <div class="panel-body">
+                    <div class="row text-center">
+                        <div class="col-md-4">
+                            <h4>🔐 로컬 가입</h4>
+                            <p style="font-size: 32px; font-weight: bold; color: #337ab7;">
+                                {{ user_type_stats.local }}
+                            </p>
+                        </div>
+                        <div class="col-md-4">
+                            <h4>🔍 Google</h4>
+                            <p style="font-size: 32px; font-weight: bold; color: #d9534f;">
+                                {{ user_type_stats.google }}
+                            </p>
+                        </div>
+                        <div class="col-md-4">
+                            <h4>💬 Kakao</h4>
+                            <p style="font-size: 32px; font-weight: bold; color: #f0ad4e;">
+                                {{ user_type_stats.kakao }}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 최근 활동 -->
+    <div class="row">
+        <div class="col-md-6">
+            <div class="panel panel-default">
+                <div class="panel-heading">
+                    <h3 class="panel-title">🆕 최근 가입한 회원</h3>
+                </div>
+                <div class="panel-body">
+                    <table class="table table-striped table-hover">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>이메일</th>
+                                <th>닉네임</th>
+                                <th>유형</th>
+                                <th>가입일</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% if recent_users %}
+                                {% for user in recent_users %}
+                                <tr>
+                                    <td>{{ user.id }}</td>
+                                    <td>{{ user.email }}</td>
+                                    <td>{{ user.nickname }}</td>
+                                    <td>
+                                        {% if user.account_type == 'local' %}
+                                            <span class="label label-primary">로컬</span>
+                                        {% elif user.account_type == 'google' %}
+                                            <span class="label label-danger">Google</span>
+                                        {% elif user.account_type == 'kakao' %}
+                                            <span class="label label-warning">Kakao</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ user.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                                </tr>
+                                {% endfor %}
+                            {% else %}
+                                <tr>
+                                    <td colspan="5" class="text-center text-muted">
+                                        가입한 회원이 없습니다.
+                                    </td>
+                                </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                    <div class="text-right">
+                        <a href="{{ url_for('user.index_view') }}" class="btn btn-sm btn-primary">
+                            전체 회원 보기 →
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="panel panel-default">
+                <div class="panel-heading">
+                    <h3 class="panel-title">📊 최근 생성된 포트폴리오</h3>
+                </div>
+                <div class="panel-body">
+                    <table class="table table-striped table-hover">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>이름</th>
+                                <th>벤치마크</th>
+                                <th>생성일</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% if recent_portfolios %}
+                                {% for portfolio in recent_portfolios %}
+                                <tr>
+                                    <td>{{ portfolio.id }}</td>
+                                    <td>{{ portfolio.name }}</td>
+                                    <td>
+                                        <span class="label label-default">{{ portfolio.benchmark }}</span>
+                                    </td>
+                                    <td>{{ portfolio.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                                </tr>
+                                {% endfor %}
+                            {% else %}
+                                <tr>
+                                    <td colspan="4" class="text-center text-muted">
+                                        생성된 포트폴리오가 없습니다.
+                                    </td>
+                                </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                    <div class="text-right">
+                        <a href="{{ url_for('savedportfolio.index_view') }}" class="btn btn-sm btn-success">
+                            전체 포트폴리오 보기 →
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 빠른 링크 -->
+    <div class="row" style="margin-top: 30px;">
+        <div class="col-md-12">
+            <div class="panel panel-default">
+                <div class="panel-heading">
+                    <h3 class="panel-title">⚡ 빠른 링크</h3>
+                </div>
+                <div class="panel-body">
+                    <div class="btn-group" role="group">
+                        <a href="{{ url_for('user.index_view') }}" class="btn btn-default">
+                            👥 회원 관리
+                        </a>
+                        <a href="{{ url_for('savedportfolio.index_view') }}" class="btn btn-default">
+                            📁 포트폴리오 관리
+                        </a>
+                        <a href="{{ url_for('stockpricecache.index_view') }}" class="btn btn-default">
+                            💾 주가 캐시
+                        </a>
+                        <a href="{{ url_for('emailverification.index_view') }}" class="btn btn-default">
+                            📧 이메일 인증 내역
+                        </a>
+                    </div>
+                    <div class="btn-group pull-right" role="group">
+                        <a href="/" class="btn btn-primary" target="_blank">
+                            🏠 메인 사이트로 이동
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .panel {
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        border-radius: 4px;
+    }
+    
+    .panel-body {
+        min-height: 100px;
+    }
+    
+    .table {
+        margin-bottom: 0;
+    }
+    
+    h1 {
+        color: #333;
+        margin-bottom: 20px;
+    }
+</style>
+{% endblock %}

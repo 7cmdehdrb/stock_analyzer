@@ -1,0 +1,852 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>회원가입 - 포트폴리오 성과 분석기</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        /* 네비게이션 바 스타일 */
+        .navbar {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 0;
+            margin: 0 0 0 0;
+            border-radius: 15px 15px 0 0;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .navbar-content {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 15px 30px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .navbar-title {
+            color: white;
+            font-size: 24px;
+            font-weight: 700;
+            text-decoration: none;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+
+        .navbar-title:hover {
+            opacity: 0.9;
+        }
+
+        .navbar-links {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .navbar-link {
+            color: white;
+            text-decoration: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-weight: 500;
+            transition: background 0.2s;
+            white-space: nowrap;
+        }
+
+        .navbar-link:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .navbar-link.active {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        .card {
+            background: white;
+            border-radius: 0 0 15px 15px;
+            padding: 40px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            margin-top: 0;
+        }
+
+        .signup-container {
+            max-width: 500px;
+            margin: 0 auto;
+        }
+
+        /* 모바일 반응형 - 헤더 */
+        @media (max-width: 768px) {
+            .navbar-content {
+                padding: 10px 15px;
+            }
+
+            .navbar-title {
+                font-size: 18px;
+            }
+
+            .navbar-links {
+                gap: 5px;
+            }
+
+            .navbar-link {
+                padding: 6px 12px;
+                font-size: 14px;
+            }
+
+            .card {
+                padding: 25px 15px;
+            }
+
+            h1 {
+                font-size: 24px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .navbar-title {
+                font-size: 16px;
+            }
+
+            .navbar-link {
+                padding: 5px 10px;
+                font-size: 12px;
+            }
+
+            .card {
+                padding: 20px 12px;
+            }
+
+            h1 {
+                font-size: 22px;
+            }
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 30px;
+            font-size: 28px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+            font-size: 14px;
+        }
+
+        input[type="email"],
+        input[type="password"],
+        input[type="text"] {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+            background-color: white;
+        }
+
+        input[type="email"]:focus,
+        input[type="password"]:focus,
+        input[type="text"]:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        input:disabled {
+            background-color: #f5f5f5;
+            cursor: not-allowed;
+        }
+
+        .input-with-button {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .input-with-button input {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px 30px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn:active:not(:disabled) {
+            transform: translateY(0);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-secondary {
+            background: white;
+            color: #667eea;
+            border: 2px solid #667eea;
+            padding: 12px 16px;
+            white-space: nowrap;
+            flex-shrink: 0;
+            width: auto;
+            min-width: 100px;
+        }
+
+        .btn-secondary:hover:not(:disabled) {
+            background: #f0f0f0;
+        }
+
+        .btn-small {
+            padding: 10px 16px;
+            font-size: 13px;
+        }
+
+        .verification-section {
+            display: none;
+            margin-top: 15px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+
+        .verification-section.active {
+            display: block;
+        }
+
+        .message {
+            padding: 10px 15px;
+            border-radius: 6px;
+            margin-bottom: 15px;
+            font-size: 14px;
+        }
+
+        .message.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .message.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .message.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+
+        .helper-text {
+            font-size: 13px;
+            color: #666;
+            margin-top: 5px;
+        }
+
+        .timer {
+            display: inline-block;
+            color: #667eea;
+            font-weight: 600;
+            margin-left: 5px;
+        }
+
+        .status-icon {
+            display: inline-block;
+            margin-left: 10px;
+        }
+
+        .link-group {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin: 20px 0;
+            font-size: 14px;
+        }
+
+        .link-group a {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 500;
+            transition: color 0.2s;
+        }
+
+        .link-group a:hover {
+            color: #764ba2;
+            text-decoration: underline;
+        }
+
+        .password-requirements {
+            font-size: 12px;
+            color: #666;
+            margin-top: 5px;
+            line-height: 1.6;
+        }
+
+        .password-requirements ul {
+            margin-left: 20px;
+            margin-top: 5px;
+        }
+
+        .password-requirements li {
+            transition: color 0.2s;
+        }
+
+        .password-requirements li.valid {
+            color: #28a745;
+        }
+
+        .password-requirements li.invalid {
+            color: #dc3545;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- 네비게이션 바 -->
+        <div class="navbar">
+            <div class="navbar-content">
+                <a href="/" class="navbar-title">📊 포트폴리오 성과 분석기</a>
+                <div class="navbar-links">
+                    <a href="/" class="navbar-link">분석하기</a>
+                    <a href="/ranking" class="navbar-link">랭킹보기</a>
+                    <a href="/login" class="navbar-link">로그인</a>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="signup-container">
+                <h1>✨ 회원가입</h1>
+                
+                <div id="messageBox"></div>
+                
+                <form id="signupForm">
+                    <!-- 이메일 입력 -->
+                    <div class="form-group">
+                        <label for="email">이메일 <span class="status-icon" id="emailStatus"></span></label>
+                        <div class="input-with-button">
+                            <input type="email" id="email" name="email" placeholder="example@email.com" required>
+                            <button type="button" class="btn btn-secondary btn-small" id="verifyEmailBtn" disabled>
+                                이메일 인증
+                            </button>
+                        </div>
+                        <div class="helper-text">이메일 인증이 필요합니다</div>
+                    </div>
+
+                    <!-- 인증번호 입력 섹션 -->
+                    <div class="verification-section" id="verificationSection">
+                        <div class="form-group">
+                            <label for="verificationCode">
+                                인증번호
+                                <span class="timer" id="timer"></span>
+                            </label>
+                            <div class="input-with-button">
+                                <input type="text" id="verificationCode" maxlength="6" placeholder="6자리 숫자 입력">
+                                <button type="button" class="btn btn-secondary btn-small" id="verifyCodeBtn">
+                                    확인
+                                </button>
+                            </div>
+                            <div class="helper-text">이메일로 전송된 6자리 인증번호를 입력하세요</div>
+                        </div>
+                    </div>
+
+                    <!-- 비밀번호 입력 -->
+                    <div class="form-group">
+                        <label for="password">비밀번호</label>
+                        <input type="password" id="password" name="password" placeholder="비밀번호를 입력하세요" required disabled>
+                        <div class="password-requirements" id="passwordRequirements">
+                            <ul>
+                                <li id="lengthCheck">✖ 8자 이상 입력해주세요</li>
+                                <li id="formatCheck">✖ 영문, 숫자 조합을 권장합니다</li>
+                            </ul>
+                        </div>
+                        <div class="helper-text" id="passwordError" style="color: #dc3545; display: none;"></div>
+                    </div>
+
+                    <!-- 비밀번호 확인 -->
+                    <div class="form-group">
+                        <label for="passwordConfirm">비밀번호 확인</label>
+                        <input type="password" id="passwordConfirm" placeholder="비밀번호를 다시 입력하세요" required disabled>
+                        <div class="helper-text" id="passwordConfirmError" style="color: #dc3545; display: none;"></div>
+                    </div>
+
+                    <!-- 닉네임 입력 -->
+                    <div class="form-group">
+                        <label for="nickname">닉네임 <span class="status-icon" id="nicknameStatus"></span></label>
+                        <div class="input-with-button">
+                            <input type="text" id="nickname" name="nickname" placeholder="닉네임 (2~20자)" maxlength="20" required disabled>
+                            <button type="button" class="btn btn-secondary btn-small" id="checkNicknameBtn" disabled>
+                                중복 확인
+                            </button>
+                        </div>
+                        <div class="helper-text">2~20자 사이로 입력해주세요</div>
+                    </div>
+
+                    <button type="submit" class="btn" id="signupBtn" disabled>회원가입</button>
+                </form>
+
+                <div class="link-group">
+                    <a href="/login">이미 계정이 있으신가요? 로그인</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let emailVerified = false;
+        let nicknameChecked = false;
+        let verificationTimer = null;
+        let timeRemaining = 0;
+
+        const emailInput = document.getElementById('email');
+        const verifyEmailBtn = document.getElementById('verifyEmailBtn');
+        const verificationSection = document.getElementById('verificationSection');
+        const verificationCodeInput = document.getElementById('verificationCode');
+        const verifyCodeBtn = document.getElementById('verifyCodeBtn');
+        const passwordInput = document.getElementById('password');
+        const passwordConfirmInput = document.getElementById('passwordConfirm');
+        const nicknameInput = document.getElementById('nickname');
+        const checkNicknameBtn = document.getElementById('checkNicknameBtn');
+        const signupBtn = document.getElementById('signupBtn');
+        const signupForm = document.getElementById('signupForm');
+        const messageBox = document.getElementById('messageBox');
+        const timerDisplay = document.getElementById('timer');
+
+        // 메시지 표시 함수
+        function showMessage(message, type = 'info') {
+            messageBox.innerHTML = `<div class="message ${type}">${message}</div>`;
+            setTimeout(() => {
+                if (type !== 'error') {
+                    messageBox.innerHTML = '';
+                }
+            }, 5000);
+        }
+
+        // 이메일 입력 감지
+        emailInput.addEventListener('input', function() {
+            const email = this.value.trim();
+            const emailPattern = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+            
+            if (emailPattern.test(email)) {
+                verifyEmailBtn.disabled = false;
+            } else {
+                verifyEmailBtn.disabled = true;
+            }
+            
+            emailVerified = false;
+            document.getElementById('emailStatus').innerHTML = '';
+            updateSignupButton();
+        });
+
+        // 이메일 인증 버튼 클릭
+        verifyEmailBtn.addEventListener('click', async function() {
+            const email = emailInput.value.trim();
+            
+            if (!email) {
+                showMessage('이메일을 입력해주세요.', 'error');
+                return;
+            }
+
+            try {
+                verifyEmailBtn.disabled = true;
+                verifyEmailBtn.textContent = '확인 중...';
+
+                // 이메일 중복 체크
+                const checkResponse = await fetch('/api/check-email', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email })
+                });
+
+                const checkData = await checkResponse.json();
+
+                if (checkData.exists) {
+                    showMessage(checkData.message, 'error');
+                    verifyEmailBtn.disabled = false;
+                    verifyEmailBtn.textContent = '이메일 인증';
+                    return;
+                }
+
+                // 인증번호 전송
+                const response = await fetch('/api/send-verification', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    showMessage(data.message, 'success');
+                    
+                    // DEBUG 모드인 경우 자동으로 인증 완료 처리
+                    if (data.debug_mode) {
+                        isDebugMode = true;  // DEBUG 모드 플래그 설정
+                        emailVerified = true;
+                        document.getElementById('emailStatus').innerHTML = '✅';
+                        emailInput.disabled = true;
+                        verifyEmailBtn.disabled = true;
+                        verifyEmailBtn.textContent = '인증 완료';
+                        
+                        // 비밀번호, 닉네임 입력 활성화
+                        passwordInput.disabled = false;
+                        passwordConfirmInput.disabled = false;
+                        nicknameInput.disabled = false;
+                        checkNicknameBtn.disabled = false;
+                        
+                        updateSignupButton();
+                    } else {
+                        // 일반 모드: 인증번호 입력 섹션 표시
+                        verificationSection.classList.add('active');
+                        emailInput.disabled = true;
+                        verifyEmailBtn.textContent = '재전송';
+                        verifyEmailBtn.disabled = false;
+                        
+                        // 타이머 시작
+                        startTimer(data.expires_in || 300);
+                    }
+                } else {
+                    showMessage(data.error || '인증번호 전송에 실패했습니다.', 'error');
+                    verifyEmailBtn.disabled = false;
+                    verifyEmailBtn.textContent = '이메일 인증';
+                }
+
+            } catch (error) {
+                console.error('Error:', error);
+                showMessage('서버 오류가 발생했습니다.', 'error');
+                verifyEmailBtn.disabled = false;
+                verifyEmailBtn.textContent = '이메일 인증';
+            }
+        });
+
+        // 타이머 시작
+        function startTimer(seconds) {
+            clearInterval(verificationTimer);
+            timeRemaining = seconds;
+            
+            updateTimerDisplay();
+            
+            verificationTimer = setInterval(() => {
+                timeRemaining--;
+                updateTimerDisplay();
+                
+                if (timeRemaining <= 0) {
+                    clearInterval(verificationTimer);
+                    showMessage('인증번호가 만료되었습니다. 다시 요청해주세요.', 'error');
+                }
+            }, 1000);
+        }
+
+        function updateTimerDisplay() {
+            const minutes = Math.floor(timeRemaining / 60);
+            const seconds = timeRemaining % 60;
+            timerDisplay.textContent = `(${minutes}:${seconds.toString().padStart(2, '0')})`;
+        }
+
+        // 인증번호 확인 버튼 클릭
+        verifyCodeBtn.addEventListener('click', async function() {
+            const email = emailInput.value.trim();
+            const code = verificationCodeInput.value.trim();
+
+            if (!code || code.length !== 6) {
+                showMessage('6자리 인증번호를 입력해주세요.', 'error');
+                return;
+            }
+
+            try {
+                verifyCodeBtn.disabled = true;
+                verifyCodeBtn.textContent = '확인 중...';
+
+                const response = await fetch('/api/verify-code', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, code })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    emailVerified = true;
+                    showMessage(data.message, 'success');
+                    document.getElementById('emailStatus').innerHTML = '✅';
+                    
+                    // 인증 완료 처리
+                    verificationCodeInput.disabled = true;
+                    verifyCodeBtn.disabled = true;
+                    verifyEmailBtn.disabled = true;
+                    clearInterval(verificationTimer);
+                    timerDisplay.textContent = '';
+                    
+                    // 비밀번호, 닉네임 입력 활성화
+                    passwordInput.disabled = false;
+                    passwordConfirmInput.disabled = false;
+                    nicknameInput.disabled = false;
+                    checkNicknameBtn.disabled = false;
+                    
+                    updateSignupButton();
+                } else {
+                    showMessage(data.error || '인증번호가 일치하지 않습니다.', 'error');
+                    verifyCodeBtn.disabled = false;
+                    verifyCodeBtn.textContent = '확인';
+                }
+
+            } catch (error) {
+                console.error('Error:', error);
+                showMessage('서버 오류가 발생했습니다.', 'error');
+                verifyCodeBtn.disabled = false;
+                verifyCodeBtn.textContent = '확인';
+            }
+        });
+
+        // DEBUG 모드 플래그 저장 (이메일 인증 시 설정됨)
+        let isDebugMode = false;
+
+        // 닉네임 입력 감지
+        nicknameInput.addEventListener('input', function() {
+            nicknameChecked = false;
+            document.getElementById('nicknameStatus').innerHTML = '';
+            updateSignupButton();
+        });
+
+        // 닉네임 중복 확인 버튼 클릭
+        checkNicknameBtn.addEventListener('click', async function() {
+            const nickname = nicknameInput.value.trim();
+
+            if (!nickname || nickname.length < 2 || nickname.length > 20) {
+                showMessage('닉네임은 2~20자 사이여야 합니다.', 'error');
+                return;
+            }
+
+            try {
+                checkNicknameBtn.disabled = true;
+                checkNicknameBtn.textContent = '확인 중...';
+
+                const response = await fetch('/api/check-nickname', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ nickname })
+                });
+
+                const data = await response.json();
+
+                if (data.exists) {
+                    showMessage(data.message, 'error');
+                    nicknameChecked = false;
+                    document.getElementById('nicknameStatus').innerHTML = '❌';
+                } else {
+                    showMessage(data.message, 'success');
+                    nicknameChecked = true;
+                    document.getElementById('nicknameStatus').innerHTML = '✅';
+                }
+
+                checkNicknameBtn.disabled = false;
+                checkNicknameBtn.textContent = '중복 확인';
+                updateSignupButton();
+
+            } catch (error) {
+                console.error('Error:', error);
+                showMessage('서버 오류가 발생했습니다.', 'error');
+                checkNicknameBtn.disabled = false;
+                checkNicknameBtn.textContent = '중복 확인';
+            }
+        });
+
+        // 회원가입 버튼 활성화 상태 업데이트
+        function updateSignupButton() {
+            const password = passwordInput.value;
+            const passwordConfirm = passwordConfirmInput.value;
+            
+            if (emailVerified && nicknameChecked && 
+                password.length >= 8 && password === passwordConfirm) {
+                signupBtn.disabled = false;
+            } else {
+                signupBtn.disabled = true;
+            }
+        }
+
+        // 비밀번호 유효성 검사 함수
+        function validatePassword(password) {
+            const lengthCheck = password.length >= 8;
+            const hasLetter = /[a-zA-Z]/.test(password);
+            const hasNumber = /[0-9]/.test(password);
+            const formatCheck = hasLetter && hasNumber;
+
+            return { lengthCheck, formatCheck };
+        }
+
+        // 비밀번호 입력 감지 - 실시간 유효성 검사
+        passwordInput.addEventListener('input', function() {
+            const password = this.value;
+            const validation = validatePassword(password);
+            const lengthCheckEl = document.getElementById('lengthCheck');
+            const formatCheckEl = document.getElementById('formatCheck');
+            const passwordErrorEl = document.getElementById('passwordError');
+
+            // 길이 체크
+            if (validation.lengthCheck) {
+                lengthCheckEl.className = 'valid';
+                lengthCheckEl.textContent = '✓ 8자 이상 입력해주세요';
+            } else {
+                lengthCheckEl.className = 'invalid';
+                lengthCheckEl.textContent = '✖ 8자 이상 입력해주세요';
+            }
+
+            // 포맷 체크
+            if (validation.formatCheck) {
+                formatCheckEl.className = 'valid';
+                formatCheckEl.textContent = '✓ 영문, 숫자 조합을 권장합니다';
+            } else {
+                formatCheckEl.className = 'invalid';
+                formatCheckEl.textContent = '✖ 영문, 숫자 조합을 권장합니다';
+            }
+
+            // 에러 메시지 표시
+            if (password.length > 0 && !validation.lengthCheck) {
+                passwordErrorEl.textContent = '⚠ 비밀번호는 최소 8자 이상이어야 합니다.';
+                passwordErrorEl.style.display = 'block';
+            } else if (password.length > 0 && !validation.formatCheck) {
+                passwordErrorEl.textContent = '⚠ 영문과 숫자를 함께 사용하는 것을 권장합니다.';
+                passwordErrorEl.style.display = 'block';
+            } else {
+                passwordErrorEl.style.display = 'none';
+            }
+
+            // 비밀번호 확인과 일치 여부 체크
+            if (passwordConfirmInput.value) {
+                checkPasswordMatch();
+            }
+
+            updateSignupButton();
+        });
+
+        // 비밀번호 확인 입력 감지
+        passwordConfirmInput.addEventListener('input', function() {
+            checkPasswordMatch();
+            updateSignupButton();
+        });
+
+        // 비밀번호 일치 여부 확인 함수
+        function checkPasswordMatch() {
+            const password = passwordInput.value;
+            const passwordConfirm = passwordConfirmInput.value;
+            const passwordConfirmErrorEl = document.getElementById('passwordConfirmError');
+
+            if (passwordConfirm.length > 0) {
+                if (password === passwordConfirm) {
+                    passwordConfirmErrorEl.textContent = '✓ 비밀번호가 일치합니다.';
+                    passwordConfirmErrorEl.style.color = '#28a745';
+                    passwordConfirmErrorEl.style.display = 'block';
+                } else {
+                    passwordConfirmErrorEl.textContent = '✖ 비밀번호가 일치하지 않습니다.';
+                    passwordConfirmErrorEl.style.color = '#dc3545';
+                    passwordConfirmErrorEl.style.display = 'block';
+                }
+            } else {
+                passwordConfirmErrorEl.style.display = 'none';
+            }
+        }
+
+        // 회원가입 폼 제출
+        signupForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+
+            const email = emailInput.value.trim();
+            const password = passwordInput.value;
+            const passwordConfirm = passwordConfirmInput.value;
+            const nickname = nicknameInput.value.trim();
+
+            // 최종 검증
+            if (!emailVerified) {
+                showMessage('이메일 인증을 완료해주세요.', 'error');
+                return;
+            }
+
+            if (!nicknameChecked) {
+                showMessage('닉네임 중복 확인을 해주세요.', 'error');
+                return;
+            }
+
+            if (password.length < 8) {
+                showMessage('비밀번호는 8자 이상이어야 합니다.', 'error');
+                return;
+            }
+
+            if (password !== passwordConfirm) {
+                showMessage('비밀번호가 일치하지 않습니다.', 'error');
+                return;
+            }
+
+            try {
+                signupBtn.disabled = true;
+                signupBtn.textContent = '가입 중...';
+
+                const response = await fetch('/api/signup', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password, nickname })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    showMessage('🎉 ' + data.message + ' 로그인 페이지로 이동합니다.', 'success');
+                    setTimeout(() => {
+                        window.location.href = '/login';
+                    }, 2000);
+                } else {
+                    showMessage(data.error || '회원가입에 실패했습니다.', 'error');
+                    signupBtn.disabled = false;
+                    signupBtn.textContent = '회원가입';
+                }
+
+            } catch (error) {
+                console.error('Error:', error);
+                showMessage('서버 오류가 발생했습니다.', 'error');
+                signupBtn.disabled = false;
+                signupBtn.textContent = '회원가입';
+            }
+        });
+    </script>
+</body>
+</html>

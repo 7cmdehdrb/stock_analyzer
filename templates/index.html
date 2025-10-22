@@ -198,6 +198,53 @@
             background: #dc2626;
         }
 
+        /* 모바일 반응형 - 직접 입력 테이블 */
+        @media (max-width: 768px) {
+            .input-table th,
+            .input-table td {
+                padding: 6px 4px;
+                font-size: 12px;
+            }
+
+            .input-table input[type="text"],
+            .input-table input[type="number"],
+            .input-table select {
+                padding: 6px;
+                font-size: 13px;
+            }
+
+            .delete-row-btn {
+                padding: 4px 8px;
+                font-size: 11px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .input-table th,
+            .input-table td {
+                padding: 4px 2px;
+                font-size: 11px;
+            }
+
+            .input-table input[type="text"],
+            .input-table input[type="number"],
+            .input-table select {
+                padding: 4px;
+                font-size: 12px;
+                min-width: 60px;
+            }
+
+            .input-table input[type="checkbox"] {
+                width: 16px;
+                height: 16px;
+            }
+
+            .delete-row-btn {
+                padding: 3px 6px;
+                font-size: 10px;
+            }
+        }
+
         .add-row-btn {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
@@ -377,6 +424,8 @@
             align-items: center;
             justify-content: space-between;
             padding: 15px 30px;
+            flex-wrap: wrap;
+            gap: 10px;
         }
 
         .navbar-title {
@@ -394,7 +443,8 @@
 
         .navbar-links {
             display: flex;
-            gap: 20px;
+            gap: 10px;
+            flex-wrap: wrap;
         }
 
         .navbar-link {
@@ -404,6 +454,7 @@
             border-radius: 6px;
             font-weight: 500;
             transition: background 0.2s;
+            white-space: nowrap;
         }
 
         .navbar-link:hover {
@@ -412,6 +463,37 @@
 
         .navbar-link.active {
             background: rgba(255, 255, 255, 0.3);
+        }
+
+        /* 모바일 반응형 - 헤더 */
+        @media (max-width: 768px) {
+            .navbar-content {
+                padding: 10px 15px;
+            }
+
+            .navbar-title {
+                font-size: 18px;
+            }
+
+            .navbar-links {
+                gap: 5px;
+            }
+
+            .navbar-link {
+                padding: 6px 12px;
+                font-size: 14px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .navbar-title {
+                font-size: 16px;
+            }
+
+            .navbar-link {
+                padding: 5px 10px;
+                font-size: 12px;
+            }
         }
     </style>
 </head>
@@ -424,6 +506,7 @@
                 <div class="navbar-links">
                     <a href="/" class="navbar-link active">분석하기</a>
                     <a href="/ranking" class="navbar-link">랭킹보기</a>
+                    <a href="/login" class="navbar-link" id="authLink">로그인</a>
                 </div>
             </div>
         </div>
@@ -499,9 +582,22 @@
                         <option value="SPY">S&P 500</option>
                         <option value="QQQ">NASDAQ 100</option>
                         <option value="069500.KS">KODEX 200</option>
+                        <option value="CUSTOM">기타 (직접 입력)</option>
+                        <option disabled>──────────────</option>
+                        <option value="HEDGEFUND_BLACKROCK">🏢 블랙록 (BlackRock)</option>
+                        <option value="HEDGEFUND_BERKSHIRE">🏢 버크셔 해서웨이 (Berkshire Hathaway)</option>
                     </select>
                     <div class="helper-text">
                         포트폴리오 성과를 비교할 벤치마크를 선택하세요.
+                    </div>
+                </div>
+
+                <!-- 기타 벤치마크 입력 필드 (숨김 상태로 시작) -->
+                <div class="form-group" id="customBenchmarkGroup" style="display: none;">
+                    <label for="customBenchmarkTicker">벤치마크 티커</label>
+                    <input type="text" id="customBenchmarkTicker" name="custom_benchmark_ticker" placeholder="예: ARKK, VTI, ^IXIC">
+                    <div class="helper-text">
+                        비교할 벤치마크의 티커를 입력하세요. (예: ARKK, VTI, ^IXIC 등)
                     </div>
                 </div>
 
@@ -541,8 +637,11 @@
                 <h1 style="margin: 0; color: #333; font-size: 2em;">
                     <span id="portfolioNameDisplay"></span>
                 </h1>
-                <div style="margin-top: 15px; padding: 12px; background: #fff3cd; border-left: 4px solid #ffc107; border-radius: 4px; color: #856404; font-size: 14px;">
-                    ℹ️ <strong>알림:</strong> 다른 사용자의 포트폴리오를 조회할 때는 프라이버시 보호를 위해 자산 가치가 표시되지 않습니다.
+                <div style="margin-top: 10px; font-size: 14px; color: #666;">
+                    👤 <span id="portfolioOwnerDisplay" style="font-weight: 600;"></span>
+                </div>
+                <div id="privacyNotice" style="margin-top: 15px; padding: 12px; border-left: 4px solid #ffc107; border-radius: 4px; font-size: 14px;">
+                    <!-- JavaScript에서 동적으로 내용 설정 -->
                 </div>
             </div>
             
@@ -805,6 +904,105 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script>
+        // 전역 변수로 로그인 상태 저장
+        let isUserLoggedIn = false;
+
+        // 로그인 상태 체크
+        async function checkLoginStatus() {
+            try {
+                const response = await fetch('/api/me');
+                const data = await response.json();
+                
+                const authLink = document.getElementById('authLink');
+                
+                if (data.logged_in) {
+                    isUserLoggedIn = true;
+                    authLink.textContent = `👤 ${data.user.nickname}`;
+                    authLink.href = '/mypage';
+                    authLink.onclick = null;
+                } else {
+                    isUserLoggedIn = false;
+                    authLink.textContent = '로그인';
+                    authLink.href = '/login';
+                    authLink.onclick = null;
+                }
+                
+                // 로그인 상태에 따라 UI 업데이트
+                updateUIBasedOnLogin();
+            } catch (error) {
+                console.error('로그인 상태 확인 오류:', error);
+                isUserLoggedIn = false;
+                updateUIBasedOnLogin();
+            }
+        }
+        
+        // 로그인 상태에 따라 UI 업데이트
+        function updateUIBasedOnLogin() {
+            const portfolioNameInput = document.getElementById('portfolioName');
+            const saveBtn = document.getElementById('saveBtn');
+            const aiAnalysisBtn = document.getElementById('aiAnalysisBtn');
+            
+            if (portfolioNameInput && saveBtn) {
+                if (!isUserLoggedIn) {
+                    portfolioNameInput.disabled = true;
+                    portfolioNameInput.placeholder = '🔒 로그인이 필요한 기능입니다';
+                    portfolioNameInput.style.backgroundColor = '#f5f5f5';
+                    portfolioNameInput.style.cursor = 'not-allowed';
+                    
+                    saveBtn.disabled = true;
+                    saveBtn.style.opacity = '0.5';
+                    saveBtn.style.cursor = 'not-allowed';
+                    saveBtn.title = '로그인이 필요합니다';
+                } else {
+                    portfolioNameInput.disabled = false;
+                    portfolioNameInput.placeholder = '포트폴리오 이름 입력';
+                    portfolioNameInput.style.backgroundColor = 'white';
+                    portfolioNameInput.style.cursor = 'text';
+                    
+                    saveBtn.disabled = false;
+                    saveBtn.style.opacity = '1';
+                    saveBtn.style.cursor = 'pointer';
+                    saveBtn.title = '';
+                }
+            }
+            
+            if (aiAnalysisBtn) {
+                if (!isUserLoggedIn) {
+                    aiAnalysisBtn.disabled = true;
+                    aiAnalysisBtn.style.opacity = '0.5';
+                    aiAnalysisBtn.style.cursor = 'not-allowed';
+                    aiAnalysisBtn.title = '로그인이 필요합니다';
+                    aiAnalysisBtn.innerHTML = '🤖 AI 분석하기 <span style="font-size: 12px; display: block; margin-top: 5px;">🔒 로그인이 필요한 기능입니다</span>';
+                } else {
+                    aiAnalysisBtn.disabled = false;
+                    aiAnalysisBtn.style.opacity = '1';
+                    aiAnalysisBtn.style.cursor = 'pointer';
+                    aiAnalysisBtn.title = '';
+                    aiAnalysisBtn.innerHTML = '🤖 AI 분석하기<br><span style="font-size: 12px; opacity: 0.9;">포트폴리오를 AI가 분석해드립니다</span>';
+                }
+            }
+        }
+        
+        // 로그아웃
+        async function logout() {
+            try {
+                const response = await fetch('/api/logout', {
+                    method: 'POST'
+                });
+                
+                if (response.ok) {
+                    alert('로그아웃되었습니다.');
+                    window.location.reload();
+                }
+            } catch (error) {
+                console.error('로그아웃 오류:', error);
+                alert('로그아웃 중 오류가 발생했습니다.');
+            }
+        }
+        
+        // 페이지 로드 시 로그인 상태 체크
+        window.addEventListener('DOMContentLoaded', checkLoginStatus);
+        
         const form = document.getElementById('analysisForm');
         const loading = document.getElementById('loading');
         const error = document.getElementById('error');
@@ -833,6 +1031,21 @@
         
         // 기본 벤치마크 설정
         document.getElementById('benchmarkTicker').value = 'SPY';
+
+        // 벤치마크 선택 변경 이벤트 리스너
+        document.getElementById('benchmarkTicker').addEventListener('change', function() {
+            const customBenchmarkGroup = document.getElementById('customBenchmarkGroup');
+            const customBenchmarkTicker = document.getElementById('customBenchmarkTicker');
+            
+            if (this.value === 'CUSTOM') {
+                customBenchmarkGroup.style.display = 'block';
+                customBenchmarkTicker.required = true;
+            } else {
+                customBenchmarkGroup.style.display = 'none';
+                customBenchmarkTicker.required = false;
+                customBenchmarkTicker.value = ''; // 값 초기화
+            }
+        });
 
         // 입력 모드 버튼 이벤트 리스너
         document.getElementById('csvModeBtn').addEventListener('click', function() {
@@ -1049,22 +1262,47 @@
                             formCard.style.display = 'none';
                         }
                         
-                        // 포트폴리오 이름 표시
+                        // 포트폴리오 이름 및 소유자 표시
                         const portfolioNameSection = document.getElementById('portfolioNameSection');
                         const portfolioNameDisplay = document.getElementById('portfolioNameDisplay');
+                        const portfolioOwnerDisplay = document.getElementById('portfolioOwnerDisplay');
+                        const privacyNotice = document.getElementById('privacyNotice');
+                        
                         if (portfolioNameSection && portfolioNameDisplay) {
                             portfolioNameDisplay.textContent = data.name;
+                            if (portfolioOwnerDisplay && data.owner_nickname) {
+                                portfolioOwnerDisplay.textContent = data.owner_nickname;
+                            } else if (portfolioOwnerDisplay) {
+                                portfolioOwnerDisplay.textContent = '익명';
+                            }
+                            
+                            // 프라이버시 알림 설정
+                            if (privacyNotice) {
+                                if (data.is_owner) {
+                                    // 소유자인 경우
+                                    privacyNotice.style.background = '#d1ecf1';
+                                    privacyNotice.style.color = '#0c5460';
+                                    privacyNotice.innerHTML = '✅ <strong>내 포트폴리오:</strong> 모든 정보가 표시됩니다.';
+                                } else {
+                                    // 다른 사용자의 포트폴리오인 경우
+                                    privacyNotice.style.background = '#fff3cd';
+                                    privacyNotice.style.color = '#856404';
+                                    privacyNotice.innerHTML = 'ℹ️ <strong>알림:</strong> 다른 사용자의 포트폴리오를 조회할 때는 프라이버시 보호를 위해 자산 가치가 표시되지 않습니다.';
+                                }
+                            }
+                            
                             portfolioNameSection.style.display = 'block';
                         }
                         
-                        // 결과 표시 - data에서 직접 필요한 필드 추출 (상세 뷰 모드로)
+                        // 결과 표시 - data에서 직접 필요한 필드 추출
+                        // is_owner가 true면 정상 표시, false면 프라이버시 모드
                         displayResults({
                             metrics: data.metrics,
                             summary: data.summary,
                             holdings_table: data.holdings_table,
                             allocation_data: data.allocation_data,
                             chart_data: data.chart_data
-                        }, true); // true = 상세 뷰 모드
+                        }, !data.is_owner); // true = 프라이버시 모드 (다른 사용자), false = 정상 표시 (소유자)
                         
                         // 결과 섹션 표시
                         const results = document.getElementById('results');
@@ -1206,7 +1444,22 @@
             const formData = new FormData();
             formData.append('csv_file', fileToUpload);
             formData.append('start_date', document.getElementById('startDate').value);
-            formData.append('benchmark_ticker', document.getElementById('benchmarkTicker').value);
+            
+            // 벤치마크 처리
+            const benchmarkSelect = document.getElementById('benchmarkTicker').value;
+            if (benchmarkSelect === 'CUSTOM') {
+                const customTicker = document.getElementById('customBenchmarkTicker').value.trim();
+                if (!customTicker) {
+                    alert('벤치마크 티커를 입력해주세요.');
+                    loading.style.display = 'none';
+                    analyzeBtn.disabled = false;
+                    return;
+                }
+                formData.append('benchmark_ticker', customTicker);
+            } else {
+                formData.append('benchmark_ticker', benchmarkSelect);
+            }
+            
             formData.append('base_currency', document.getElementById('baseCurrency').value);
             
             // FormData 내용 확인 (디버깅용)
@@ -1268,6 +1521,9 @@
                 
                 // AI 분석 버튼 표시
                 document.getElementById('aiAnalysisSection').style.display = 'block';
+                
+                // 로그인 상태에 따라 UI 업데이트
+                updateUIBasedOnLogin();
                 
                 // 직접 입력 모드인 경우 CSV 내보내기 버튼 표시
                 if (currentInputMode === 'manual') {
@@ -1468,7 +1724,8 @@
             `;
 
             // 차트 생성
-            createChart(chart_data, summary.benchmark);
+            const benchmarkName = summary.benchmark_name || summary.benchmark;
+            createChart(chart_data, benchmarkName);
         }
 
         function createChart(chartData, benchmark) {
@@ -1746,6 +2003,13 @@
 
         // 포트폴리오 저장 함수
         async function savePortfolio() {
+            // 로그인 체크
+            if (!isUserLoggedIn) {
+                alert('🔒 로그인이 필요한 기능입니다.\n로그인 후 이용해주세요.');
+                window.location.href = '/login';
+                return;
+            }
+            
             const nameInput = document.getElementById('portfolioName');
             const name = nameInput.value.trim();
             const saveBtn = document.getElementById('saveBtn');
@@ -1778,6 +2042,12 @@
                 });
                 
                 const data = await response.json();
+                
+                if (response.status === 401) {
+                    alert('🔒 ' + data.error);
+                    window.location.href = '/login';
+                    return;
+                }
                 
                 if (!response.ok) {
                     throw new Error(data.error || '저장 중 오류가 발생했습니다.');
@@ -1867,6 +2137,13 @@
 
         // AI 분석 함수
         async function analyzeWithAI() {
+            // 로그인 체크
+            if (!isUserLoggedIn) {
+                alert('🔒 로그인이 필요한 기능입니다.\nAI 분석은 로그인 후 이용하실 수 있습니다.');
+                window.location.href = '/login';
+                return;
+            }
+            
             if (!currentAnalysisData) {
                 alert('분석 데이터가 없습니다. 먼저 포트폴리오 분석을 실행해주세요.');
                 return;
@@ -1908,6 +2185,14 @@
                 });
                 
                 const data = await response.json();
+                
+                // 로그인 체크
+                if (response.status === 401) {
+                    modal.style.display = 'none';
+                    alert('🔒 ' + data.error);
+                    window.location.href = '/login';
+                    return;
+                }
                 
                 // Rate limiting 처리
                 if (response.status === 429 || data.rate_limited) {

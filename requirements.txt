@@ -1,0 +1,6 @@
+Flask==3.0.0
+pandas==2.1.4
+yfinance==0.2.33
+numpy==1.26.2
+flask-admin>=1.6.0
+flask-sqlalchemy>=3.0.0

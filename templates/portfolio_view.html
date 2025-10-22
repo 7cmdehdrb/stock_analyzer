@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ portfolio.name }} - 포트폴리오 분석</title>
+</head>
+<body>
+    <script>
+        // 저장된 포트폴리오 데이터로 리디렉션
+        const data = {{ data | tojson | safe }};
+        
+        // 데이터를 세션 스토리지에 저장
+        sessionStorage.setItem('portfolioData', JSON.stringify({
+            name: "{{ portfolio.name }}",
+            date: "{{ portfolio.created_at.strftime('%Y-%m-%d %H:%M') }}",
+            ...data
+        }));
+        
+        // 메인 페이지로 리디렉션 (결과를 표시하기 위해)
+        window.location.href = '/?view=portfolio';
+    </script>
+</body>
+</html>

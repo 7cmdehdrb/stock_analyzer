@@ -1,0 +1,625 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>포트폴리오 랭킹</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            padding: 0;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+        }
+
+        /* 네비게이션 바 */
+        .navbar {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 0;
+            margin: 0;
+            border-radius: 12px 12px 0 0;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .navbar-content {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 15px 30px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .navbar-title {
+            color: white;
+            font-size: 24px;
+            font-weight: 700;
+            text-decoration: none;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+
+        .navbar-title:hover {
+            opacity: 0.9;
+        }
+
+        .navbar-links {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .navbar-link {
+            color: white;
+            text-decoration: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-weight: 500;
+            transition: background 0.2s;
+            white-space: nowrap;
+        }
+
+        .navbar-link:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .navbar-link.active {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        /* 모바일 반응형 - 헤더 */
+        @media (max-width: 768px) {
+            .navbar-content {
+                padding: 10px 15px;
+            }
+
+            .navbar-title {
+                font-size: 18px;
+            }
+
+            .navbar-links {
+                gap: 5px;
+            }
+
+            .navbar-link {
+                padding: 6px 12px;
+                font-size: 14px;
+            }
+
+            .content {
+                padding: 20px 15px;
+            }
+
+            h2 {
+                font-size: 24px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .navbar-title {
+                font-size: 16px;
+            }
+
+            .navbar-link {
+                padding: 5px 10px;
+                font-size: 12px;
+            }
+
+            .content {
+                padding: 15px 10px;
+            }
+
+            h2 {
+                font-size: 20px;
+            }
+        }
+
+        .content {
+            padding: 30px;
+        }
+
+        h2 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+
+        .section {
+            margin-bottom: 40px;
+        }
+
+        .section-title {
+            font-size: 20px;
+            color: #667eea;
+            margin-bottom: 15px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .portfolio-list {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .portfolio-item {
+            background: white;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            padding: 20px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .portfolio-item:hover {
+            border-color: #667eea;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
+            transform: translateY(-2px);
+        }
+
+        .portfolio-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 15px;
+            gap: 10px;
+        }
+
+        .portfolio-name {
+            font-size: 18px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .portfolio-date {
+            font-size: 12px;
+            color: #999;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+
+        .portfolio-metrics {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+        }
+
+        /* 모바일 반응형 - 랭킹 페이지 */
+        @media (max-width: 768px) {
+            .portfolio-item {
+                padding: 15px;
+            }
+
+            .portfolio-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 8px;
+            }
+
+            .portfolio-name {
+                font-size: 16px;
+            }
+
+            .portfolio-date {
+                font-size: 11px;
+            }
+
+            .benchmark-badge {
+                font-size: 10px;
+                padding: 3px 8px;
+                margin-left: 6px;
+            }
+
+            .portfolio-metrics {
+                grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+                gap: 10px;
+            }
+
+            .metric-value {
+                font-size: 16px;
+            }
+
+            .rank-badge {
+                width: 28px;
+                height: 28px;
+                font-size: 14px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .portfolio-item {
+                padding: 12px;
+            }
+
+            .portfolio-name {
+                font-size: 14px;
+            }
+
+            .portfolio-date {
+                font-size: 10px;
+            }
+
+            .benchmark-badge {
+                font-size: 9px;
+                padding: 2px 6px;
+                margin-left: 4px;
+            }
+
+            .portfolio-metrics {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 8px;
+            }
+
+            .metric-label {
+                font-size: 11px;
+            }
+
+            .metric-value {
+                font-size: 14px;
+            }
+
+            .rank-badge {
+                width: 24px;
+                height: 24px;
+                font-size: 12px;
+                margin-right: 6px;
+            }
+        }
+
+        .metric-item {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .metric-label {
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 4px;
+        }
+
+        .metric-value {
+            font-size: 18px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .metric-value.positive {
+            color: #22c55e;
+        }
+
+        .metric-value.negative {
+            color: #ef4444;
+        }
+
+        .rank-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            font-weight: 700;
+            font-size: 16px;
+            color: white;
+            margin-right: 10px;
+        }
+
+        .rank-1 { background: linear-gradient(135deg, #ffd700 0%, #ffed4e 100%); color: #333; }
+        .rank-2 { background: linear-gradient(135deg, #c0c0c0 0%, #e8e8e8 100%); color: #333; }
+        .rank-3 { background: linear-gradient(135deg, #cd7f32 0%, #e8a87c 100%); color: white; }
+        .rank-default { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+
+        /* 벤치마크 배지 */
+        .benchmark-badge {
+            display: inline-block;
+            padding: 4px 10px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+            margin-left: 8px;
+            vertical-align: middle;
+        }
+
+        .empty-message {
+            text-align: center;
+            padding: 40px;
+            color: #999;
+            font-size: 16px;
+        }
+
+        /* 벤치마크 필터 버튼 */
+        .filter-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+
+        .filter-label {
+            font-size: 14px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 12px;
+            display: block;
+        }
+
+        .filter-buttons {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .filter-btn {
+            padding: 10px 20px;
+            border: 2px solid #667eea;
+            background: white;
+            color: #667eea;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .filter-btn:hover {
+            background: #f0f3ff;
+        }
+
+        .filter-btn.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-color: transparent;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- 네비게이션 바 -->
+        <div class="navbar">
+            <div class="navbar-content">
+                <a href="/" class="navbar-title">📊 포트폴리오 성과 분석기</a>
+                <div class="navbar-links">
+                    <a href="/" class="navbar-link">분석하기</a>
+                    <a href="/ranking" class="navbar-link active">랭킹보기</a>
+                    <a href="/exchange-rate" class="navbar-link">환율</a>
+                    <a href="/login" class="navbar-link" id="authLink">로그인</a>
+                </div>
+            </div>
+        </div>
+
+        <div class="content">
+            <h2>🏆 포트폴리오 랭킹</h2>
+            <p style="color: #666; margin-bottom: 20px;">저장된 포트폴리오들의 성과 지표 기준 상위 5개를 확인하세요.</p>
+
+            <!-- 벤치마크 필터 -->
+            <div class="filter-section">
+                <span class="filter-label">🎯 벤치마크 필터</span>
+                <div class="filter-buttons">
+                    <button class="filter-btn active" onclick="filterByBenchmark('전체')">전체</button>
+                    <button class="filter-btn" onclick="filterByBenchmark('S&P500')">S&P 500</button>
+                    <button class="filter-btn" onclick="filterByBenchmark('NASDAQ100')">NASDAQ 100</button>
+                    <button class="filter-btn" onclick="filterByBenchmark('KODEX200')">KODEX 200</button>
+                </div>
+            </div>
+
+            <div class="section">
+                <div class="section-title">📈 연평균 수익률 (CAGR) Top 5</div>
+                <div class="portfolio-list" id="cagr-ranking"></div>
+            </div>
+
+            <div class="section">
+                <div class="section-title">💎 Sortino Ratio Top 5</div>
+                <div class="portfolio-list" id="sortino-ranking"></div>
+            </div>
+
+            <div class="section">
+                <div class="section-title">⚡ Sharpe Ratio Top 5</div>
+                <div class="portfolio-list" id="sharpe-ranking"></div>
+            </div>
+
+            <div class="section">
+                <div class="section-title">🎯 Alpha Top 5</div>
+                <div class="portfolio-list" id="alpha-ranking"></div>
+            </div>
+
+            <div class="section">
+                <div class="section-title">📊 Beta (1.0에 가까운 순) Top 5</div>
+                <div class="portfolio-list" id="beta-ranking"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 로그인 상태 체크
+        async function checkLoginStatus() {
+            try {
+                const response = await fetch('/api/me');
+                const data = await response.json();
+                
+                const authLink = document.getElementById('authLink');
+                
+                if (data.logged_in) {
+                    authLink.textContent = `👤 ${data.user.nickname}`;
+                    authLink.href = '/mypage';
+                    authLink.onclick = null;
+                } else {
+                    authLink.textContent = '로그인';
+                    authLink.href = '/login';
+                    authLink.onclick = null;
+                }
+            } catch (error) {
+                console.error('로그인 상태 확인 오류:', error);
+            }
+        }
+        
+        async function logout() {
+            try {
+                const response = await fetch('/api/logout', {
+                    method: 'POST'
+                });
+                
+                if (response.ok) {
+                    alert('로그아웃되었습니다.');
+                    window.location.reload();
+                }
+            } catch (error) {
+                console.error('로그아웃 오류:', error);
+            }
+        }
+        
+        // 페이지 로드 시 로그인 상태 체크
+        window.addEventListener('DOMContentLoaded', checkLoginStatus);
+        
+        let currentBenchmark = '전체'; // 기본 벤치마크
+
+        async function loadRankings(benchmark = null) {
+            try {
+                // 벤치마크 파라미터가 있으면 사용, 없으면 현재 선택된 것 사용
+                const benchmarkParam = benchmark || currentBenchmark;
+                const url = `/api/rankings?benchmark=${encodeURIComponent(benchmarkParam)}`;
+                
+                const response = await fetch(url);
+                if (!response.ok) {
+                    throw new Error('랭킹 데이터를 불러올 수 없습니다.');
+                }
+
+                const data = await response.json();
+
+                renderRanking('cagr-ranking', data.cagr, 'CAGR', '%');
+                renderRanking('sortino-ranking', data.sortino, 'Sortino');
+                renderRanking('sharpe-ranking', data.sharpe, 'Sharpe');
+                renderRanking('alpha-ranking', data.alpha, 'Alpha', '%');
+                renderRanking('beta-ranking', data.beta, 'Beta');
+
+            } catch (err) {
+                console.error('Error loading rankings:', err);
+                document.querySelectorAll('.portfolio-list').forEach(list => {
+                    list.innerHTML = '<div class="empty-message">데이터를 불러오는 중 오류가 발생했습니다.</div>';
+                });
+            }
+        }
+
+        function filterByBenchmark(benchmark) {
+            // 현재 벤치마크 업데이트
+            currentBenchmark = benchmark;
+
+            // 모든 버튼에서 active 클래스 제거
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+
+            // 클릭된 버튼에 active 클래스 추가
+            event.target.classList.add('active');
+
+            // 랭킹 다시 로드
+            loadRankings(benchmark);
+        }
+
+        function renderRanking(elementId, portfolios, metricName, suffix = '') {
+            const container = document.getElementById(elementId);
+
+            if (!portfolios || portfolios.length === 0) {
+                container.innerHTML = '<div class="empty-message">저장된 포트폴리오가 없습니다.</div>';
+                return;
+            }
+
+            // 5개 미만이면 더미 데이터 추가
+            const filledPortfolios = [...portfolios];
+            while (filledPortfolios.length < 5) {
+                filledPortfolios.push({
+                    id: null,
+                    name: '정보 없음',
+                    created_at: null,
+                    metrics: {
+                        cagr: '-',
+                        sharpe_ratio: '-',
+                        sortino_ratio: '-',
+                        alpha: '-',
+                        beta: '-'
+                    }
+                });
+            }
+
+            container.innerHTML = filledPortfolios.map((portfolio, index) => {
+                const rankClass = index === 0 ? 'rank-1' : index === 1 ? 'rank-2' : index === 2 ? 'rank-3' : 'rank-default';
+                const metrics = portfolio.metrics;
+                const isEmptySlot = portfolio.id === null;
+                const cursorStyle = isEmptySlot ? 'cursor: default; opacity: 0.5;' : 'cursor: pointer;';
+                const onclickAttr = isEmptySlot ? '' : `onclick="viewPortfolio(${portfolio.id})"`;
+                const ownerNickname = portfolio.owner_nickname || '익명';
+                const benchmarkName = portfolio.benchmark_name || portfolio.benchmark || '-';
+                
+                return `
+                    <div class="portfolio-item" ${onclickAttr} style="${cursorStyle}">
+                        <div class="portfolio-header">
+                            <div style="display: flex; align-items: center;">
+                                <span class="rank-badge ${rankClass}">${index + 1}</span>
+                                <div style="display: flex; flex-direction: column;">
+                                    <div style="display: flex; align-items: center;">
+                                        <span class="portfolio-name">${portfolio.name}</span>
+                                        <span class="benchmark-badge">📊 ${benchmarkName}</span>
+                                    </div>
+                                    <span style="font-size: 11px; color: #999; margin-top: 2px;">👤 ${ownerNickname}</span>
+                                </div>
+                            </div>
+                            <span class="portfolio-date">${portfolio.created_at ? new Date(portfolio.created_at).toLocaleDateString('ko-KR') : '-'}</span>
+                        </div>
+                        <div class="portfolio-metrics">
+                            <div class="metric-item">
+                                <div class="metric-label">CAGR</div>
+                                <div class="metric-value ${typeof metrics.cagr === 'number' && metrics.cagr >= 0 ? 'positive' : typeof metrics.cagr === 'number' && metrics.cagr < 0 ? 'negative' : ''}">
+                                    ${typeof metrics.cagr === 'number' ? (metrics.cagr >= 0 ? '+' : '') + metrics.cagr + '%' : metrics.cagr}
+                                </div>
+                            </div>
+                            <div class="metric-item">
+                                <div class="metric-label">Sharpe</div>
+                                <div class="metric-value">${metrics.sharpe_ratio}</div>
+                            </div>
+                            <div class="metric-item">
+                                <div class="metric-label">Sortino</div>
+                                <div class="metric-value">${metrics.sortino_ratio}</div>
+                            </div>
+                            <div class="metric-item">
+                                <div class="metric-label">Alpha</div>
+                                <div class="metric-value ${typeof metrics.alpha === 'number' && metrics.alpha >= 0 ? 'positive' : typeof metrics.alpha === 'number' && metrics.alpha < 0 ? 'negative' : ''}">
+                                    ${typeof metrics.alpha === 'number' ? (metrics.alpha >= 0 ? '+' : '') + metrics.alpha + '%' : metrics.alpha}
+                                </div>
+                            </div>
+                            <div class="metric-item">
+                                <div class="metric-label">Beta</div>
+                                <div class="metric-value">${metrics.beta}</div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function viewPortfolio(portfolioId) {
+            window.location.href = `/portfolio/${portfolioId}`;
+        }
+
+        // 페이지 로드 시 랭킹 데이터 로드
+        loadRankings();
+    </script>
+</body>
+</html>

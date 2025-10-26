@@ -1,0 +1,1411 @@
+{% extends "base.html" %}
+
+{% block title %}환율 - 포트폴리오 성과 분석기{% endblock %}
+
+{% block extra_styles %}
+<style>
+    body {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+    }
+
+    .exchange-rate-wrapper {
+        background: white;
+        border-radius: 15px;
+        padding: 30px;
+        box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+        margin: 20px auto;
+        max-width: 1400px;
+    }
+
+    h2 {
+        color: #333;
+        margin-bottom: 10px;
+        font-size: 28px;
+    }
+
+    .subtitle {
+        color: #666;
+        margin-bottom: 30px;
+        font-size: 14px;
+    }
+
+    .current-rate {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 20px;
+        margin-bottom: 30px;
+    }
+
+    .rate-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 20px;
+        border-radius: 12px;
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+    }
+
+    .rate-label {
+        font-size: 14px;
+        opacity: 0.9;
+        margin-bottom: 8px;
+    }
+
+    .rate-value {
+        font-size: 32px;
+        font-weight: 700;
+        margin-bottom: 8px;
+    }
+
+    .rate-change {
+        font-size: 14px;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+    }
+
+    .rate-change.positive {
+        color: #4ade80;
+    }
+
+    .rate-change.negative {
+        color: #f87171;
+    }
+
+    .chart-container {
+        position: relative;
+        height: 500px;
+        margin-bottom: 30px;
+    }
+
+    .loading {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 60px 20px;
+        color: #666;
+    }
+
+    .spinner {
+        border: 4px solid #f3f3f3;
+        border-top: 4px solid #667eea;
+        border-radius: 50%;
+        width: 40px;
+        height: 40px;
+        animation: spin 1s linear infinite;
+        margin-bottom: 15px;
+    }
+
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+
+    .period-selector {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 20px;
+        flex-wrap: wrap;
+    }
+
+    .period-btn {
+        padding: 10px 20px;
+        border: 2px solid #e0e0e0;
+        background: white;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        color: #666;
+    }
+
+    .period-btn:hover {
+        border-color: #667eea;
+        color: #667eea;
+    }
+
+    .period-btn.active {
+        background: #667eea;
+        color: white;
+        border-color: #667eea;
+    }
+
+    .indicator-toolbar {
+        background: #f8f9fa;
+        padding: 20px;
+        border-radius: 12px;
+        margin-bottom: 20px;
+    }
+
+    .indicator-section {
+        margin-bottom: 15px;
+    }
+
+    .indicator-section:last-child {
+        margin-bottom: 0;
+    }
+
+    .indicator-title {
+        font-size: 13px;
+        font-weight: 600;
+        color: #333;
+        margin-bottom: 10px;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+    }
+
+    .indicator-options {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+
+    .indicator-btn {
+        padding: 6px 12px;
+        border: 1.5px solid #e0e0e0;
+        background: white;
+        border-radius: 6px;
+        font-size: 12px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        color: #666;
+    }
+
+    .indicator-btn:hover {
+        border-color: #667eea;
+        color: #667eea;
+    }
+
+    .indicator-btn.active {
+        background: #667eea;
+        color: white;
+        border-color: #667eea;
+    }
+
+    .charts-wrapper {
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+    }
+
+    .main-chart-container {
+        position: relative;
+        height: 540px;  /* 패딩 포함하여 조정 */
+        background: white;
+        padding: 20px;
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    }
+
+    .sub-chart-container {
+        position: relative;
+        height: 230px;  /* 패딩 포함하여 조정 */
+        background: white;
+        padding: 15px 20px 10px 20px;  /* 하단 패딩 최소화 */
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    }
+
+    .sub-chart-title {
+        font-size: 14px;
+        font-weight: 600;
+        color: #333;
+        margin-bottom: 10px;
+    }
+
+    @media (max-width: 768px) {
+        .exchange-rate-wrapper {
+            padding: 20px 15px;
+        }
+
+        h2 {
+            font-size: 24px;
+        }
+
+        .rate-value {
+            font-size: 24px;
+        }
+
+        .chart-container {
+            height: 350px;
+        }
+
+        .period-selector {
+            flex-direction: column;
+        }
+
+        .period-btn {
+            width: 100%;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="exchange-rate-wrapper">
+    <h2>💱 달러/원 환율</h2>
+    <p class="subtitle">야후 파이낸스 실시간 환율 데이터 (2000년 1월 1일 ~ 현재)</p>
+
+    <!-- 현재 환율 -->
+    <div class="current-rate">
+        <div class="rate-card">
+            <div class="rate-label">현재 환율</div>
+            <div class="rate-value" id="currentRate">-</div>
+            <div class="rate-change" id="rateChange">
+                <span>-</span>
+            </div>
+        </div>
+        <div class="rate-card">
+            <div class="rate-label">오늘 고가</div>
+            <div class="rate-value" id="todayHigh">-</div>
+        </div>
+        <div class="rate-card">
+            <div class="rate-label">오늘 저가</div>
+            <div class="rate-value" id="todayLow">-</div>
+        </div>
+    </div>
+
+    <!-- 기간 선택 -->
+    <div class="period-selector">
+        <button class="period-btn" onclick="changePeriod('1M')">1개월</button>
+        <button class="period-btn" onclick="changePeriod('3M')">3개월</button>
+        <button class="period-btn" onclick="changePeriod('6M')">6개월</button>
+        <button class="period-btn" onclick="changePeriod('1Y')">1년</button>
+        <button class="period-btn" onclick="changePeriod('3Y')">3년</button>
+        <button class="period-btn" onclick="changePeriod('5Y')">5년</button>
+        <button class="period-btn" onclick="changePeriod('ALL')">전체</button>
+    </div>
+
+    <!-- 기술적 지표 툴바 -->
+    <div class="indicator-toolbar">
+        <div class="indicator-section">
+            <div class="indicator-title">📈 메인 차트 지표</div>
+            <div class="indicator-options">
+                <button class="indicator-btn" data-indicator="ma5" onclick="toggleIndicator('ma5')">MA5</button>
+                <button class="indicator-btn" data-indicator="ma10" onclick="toggleIndicator('ma10')">MA10</button>
+                <button class="indicator-btn" data-indicator="ma20" onclick="toggleIndicator('ma20')">MA20</button>
+                <button class="indicator-btn" data-indicator="ma50" onclick="toggleIndicator('ma50')">MA50</button>
+                <button class="indicator-btn" data-indicator="ma120" onclick="toggleIndicator('ma120')">MA120</button>
+                <button class="indicator-btn" data-indicator="ma200" onclick="toggleIndicator('ma200')">MA200</button>
+                <button class="indicator-btn" data-indicator="bollinger" onclick="toggleIndicator('bollinger')">볼린저 밴드</button>
+                <button class="indicator-btn" data-indicator="ichimoku" onclick="toggleIndicator('ichimoku')">일목균형표</button>
+            </div>
+        </div>
+        <div class="indicator-section">
+            <div class="indicator-title">📊 보조 지표</div>
+            <div class="indicator-options">
+                <button class="indicator-btn" data-indicator="macd" onclick="toggleIndicator('macd')">MACD</button>
+                <button class="indicator-btn" data-indicator="momentum" onclick="toggleIndicator('momentum')">모멘텀</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 차트 -->
+    <div id="chartLoading" class="loading">
+        <div class="spinner"></div>
+        <div>환율 데이터를 불러오는 중...</div>
+    </div>
+    <div class="charts-wrapper" id="chartsWrapper" style="display: none;">
+        <div class="main-chart-container">
+            <canvas id="exchangeRateChart"></canvas>
+        </div>
+        <div id="macdChart" class="sub-chart-container" style="display: none;">
+            <div class="sub-chart-title">MACD</div>
+            <canvas id="macdCanvas"></canvas>
+        </div>
+        <div id="momentumChart" class="sub-chart-container" style="display: none;">
+            <div class="sub-chart-title">모멘텀 (10일)</div>
+            <canvas id="momentumCanvas"></canvas>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/luxon@3.4.4/build/global/luxon.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-luxon@1.3.1/dist/chartjs-adapter-luxon.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-chart-financial@0.2.0/dist/chartjs-chart-financial.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8/hammer.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
+<script>
+    // Zoom 플러그인 확인
+    console.log('Chart.js version:', Chart.version);
+    console.log('Zoom plugin loaded:', typeof zoomPlugin !== 'undefined' || typeof window['chartjs-plugin-zoom'] !== 'undefined');
+    
+    let chartInstance = null;
+    let macdChartInstance = null;
+    let momentumChartInstance = null;
+    let allData = [];
+    let allIndicators = null;  // 서버에서 계산된 지표 데이터
+    let currentPeriod = 'ALL';
+    let activeIndicators = new Set();
+
+    // 차트 동기화 함수
+    function syncCharts(sourceChart) {
+        const xScale = sourceChart.scales.x;
+        const min = xScale.min;
+        const max = xScale.max;
+        
+        // MACD 차트 동기화
+        if (macdChartInstance && macdChartInstance !== sourceChart) {
+            macdChartInstance.zoomScale('x', {min, max}, 'none');
+            macdChartInstance.update('none');
+        }
+        
+        // Momentum 차트 동기화
+        if (momentumChartInstance && momentumChartInstance !== sourceChart) {
+            momentumChartInstance.zoomScale('x', {min, max}, 'none');
+            momentumChartInstance.update('none');
+        }
+        
+        // 메인 차트 동기화 (하위 차트에서 호출된 경우)
+        if (chartInstance && chartInstance !== sourceChart) {
+            chartInstance.zoomScale('x', {min, max}, 'none');
+            chartInstance.update('none');
+        }
+    }
+
+    async function loadExchangeRate() {
+        try {
+            console.log('🔄 데이터 로딩 시작...');
+            
+            const chartLoading = document.getElementById('chartLoading');
+            const chartsWrapper = document.getElementById('chartsWrapper');
+            
+            chartLoading.style.display = 'flex';
+            chartsWrapper.style.display = 'none';
+
+            console.log('📡 API 호출 중...');
+            
+            // 환율 데이터와 지표 데이터를 병렬로 로드
+            const [rateResponse, indicatorResponse] = await Promise.all([
+                fetch('/api/exchange-rate?start_date=2000-01-01'),
+                fetch('/api/exchange-rate/indicators?start_date=2000-01-01')
+            ]);
+
+            console.log('✅ API 응답 받음:', rateResponse.status, indicatorResponse.status);
+
+            const rateResult = await rateResponse.json();
+            const indicatorResult = await indicatorResponse.json();
+
+            console.log('📊 데이터 파싱 완료:', {
+                rate: rateResult.success,
+                indicator: indicatorResult.success,
+                dataCount: rateResult.data?.length
+            });
+
+            if (!rateResult.success) {
+                throw new Error(rateResult.error || '데이터를 불러올 수 없습니다');
+            }
+
+            if (!indicatorResult.success) {
+                throw new Error(indicatorResult.error || '지표를 계산할 수 없습니다');
+            }
+
+            allData = rateResult.data;
+            allIndicators = indicatorResult.indicators;
+
+            console.log(`✅ 환율 데이터 ${allData.length}일, 지표 계산 완료`);
+
+            // 기본 설정 적용: 1개월, MA5/MA20/MA120 활성화
+            currentPeriod = '1M';
+            activeIndicators.add('ma5');
+            activeIndicators.add('ma20');
+            activeIndicators.add('ma120');
+            
+            // 버튼 상태 업데이트
+            document.querySelectorAll('.period-btn').forEach(btn => btn.classList.remove('active'));
+            document.querySelector('[onclick="changePeriod(\'1M\')"]').classList.add('active');
+            
+            document.querySelector('[data-indicator="ma5"]').classList.add('active');
+            document.querySelector('[data-indicator="ma20"]').classList.add('active');
+            document.querySelector('[data-indicator="ma120"]').classList.add('active');
+
+            // 현재 환율 업데이트
+            updateCurrentRate();
+
+            // 차트 그리기
+            drawChart();
+
+            chartLoading.style.display = 'none';
+            chartsWrapper.style.display = 'flex';
+
+        } catch (error) {
+            console.error('❌ 환율 데이터 로드 오류:', error);
+            document.getElementById('chartLoading').innerHTML = `
+                <div style="color: #dc3545;">
+                    <div style="font-size: 48px; margin-bottom: 10px;">❌</div>
+                    <div>데이터를 불러오는데 실패했습니다</div>
+                    <div style="font-size: 12px; margin-top: 5px;">${error.message}</div>
+                </div>
+            `;
+        }
+    }
+    
+    // 이동평균 계산
+    function calculateMA(data, period) {
+        const result = [];
+        for (let i = 0; i < data.length; i++) {
+            if (i < period - 1) {
+                result.push(null);
+            } else {
+                let sum = 0;
+                for (let j = 0; j < period; j++) {
+                    sum += data[i - j].close;
+                }
+                result.push(sum / period);
+            }
+        }
+        return result;
+    }
+
+    // 볼린저 밴드 계산 (20일, 2 표준편차)
+    function calculateBollingerBands(data) {
+        const period = 20;
+        const multiplier = 2;
+        const upper = [];
+        const middle = [];
+        const lower = [];
+
+        for (let i = 0; i < data.length; i++) {
+            if (i < period - 1) {
+                upper.push(null);
+                middle.push(null);
+                lower.push(null);
+            } else {
+                let sum = 0;
+                for (let j = 0; j < period; j++) {
+                    sum += data[i - j].close;
+                }
+                const ma = sum / period;
+                
+                let variance = 0;
+                for (let j = 0; j < period; j++) {
+                    variance += Math.pow(data[i - j].close - ma, 2);
+                }
+                const stdDev = Math.sqrt(variance / period);
+                
+                middle.push(ma);
+                upper.push(ma + multiplier * stdDev);
+                lower.push(ma - multiplier * stdDev);
+            }
+        }
+        
+        return { upper, middle, lower };
+    }
+
+    // 일목균형표 계산
+    function calculateIchimoku(data) {
+        const result = {
+            tenkan: [],      // 전환선 (9일)
+            kijun: [],       // 기준선 (26일)
+            senkouA: [],     // 선행스팬A
+            senkouB: [],     // 선행스팬B
+            chikou: []       // 후행스팬
+        };
+
+        for (let i = 0; i < data.length; i++) {
+            // 전환선 (9일)
+            if (i < 8) {
+                result.tenkan.push(null);
+            } else {
+                let high = Math.max(...data.slice(i - 8, i + 1).map(d => d.high));
+                let low = Math.min(...data.slice(i - 8, i + 1).map(d => d.low));
+                result.tenkan.push((high + low) / 2);
+            }
+
+            // 기준선 (26일)
+            if (i < 25) {
+                result.kijun.push(null);
+            } else {
+                let high = Math.max(...data.slice(i - 25, i + 1).map(d => d.high));
+                let low = Math.min(...data.slice(i - 25, i + 1).map(d => d.low));
+                result.kijun.push((high + low) / 2);
+            }
+
+            // 선행스팬A (전환선 + 기준선) / 2, 26일 선행
+            if (i < 25) {
+                result.senkouA.push(null);
+            } else {
+                const tenkan = result.tenkan[i];
+                const kijun = result.kijun[i];
+                if (tenkan !== null && kijun !== null) {
+                    result.senkouA.push((tenkan + kijun) / 2);
+                } else {
+                    result.senkouA.push(null);
+                }
+            }
+
+            // 선행스팬B (52일 최고가 + 최저가) / 2, 26일 선행
+            if (i < 51) {
+                result.senkouB.push(null);
+            } else {
+                let high = Math.max(...data.slice(i - 51, i + 1).map(d => d.high));
+                let low = Math.min(...data.slice(i - 51, i + 1).map(d => d.low));
+                result.senkouB.push((high + low) / 2);
+            }
+
+            // 후행스팬 (현재 종가, 26일 후행)
+            result.chikou.push(data[i].close);
+        }
+
+        return result;
+    }
+
+    // MACD 계산
+    function calculateMACD(data) {
+        const ema12 = calculateEMA(data.map(d => d.close), 12);
+        const ema26 = calculateEMA(data.map(d => d.close), 26);
+        
+        const macdLine = [];
+        for (let i = 0; i < data.length; i++) {
+            if (ema12[i] !== null && ema26[i] !== null) {
+                macdLine.push(ema12[i] - ema26[i]);
+            } else {
+                macdLine.push(null);
+            }
+        }
+        
+        const signalLine = calculateEMA(macdLine.filter(v => v !== null), 9);
+        const fullSignal = [];
+        let signalIdx = 0;
+        for (let i = 0; i < macdLine.length; i++) {
+            if (macdLine[i] === null) {
+                fullSignal.push(null);
+            } else {
+                fullSignal.push(signalLine[signalIdx] || null);
+                signalIdx++;
+            }
+        }
+        
+        const histogram = [];
+        for (let i = 0; i < macdLine.length; i++) {
+            if (macdLine[i] !== null && fullSignal[i] !== null) {
+                histogram.push(macdLine[i] - fullSignal[i]);
+            } else {
+                histogram.push(null);
+            }
+        }
+        
+        return { macd: macdLine, signal: fullSignal, histogram };
+    }
+
+    // EMA 계산 (지수이동평균)
+    function calculateEMA(data, period) {
+        const result = [];
+        const multiplier = 2 / (period + 1);
+        
+        // 첫 번째 EMA는 단순 이동평균
+        let sum = 0;
+        let count = 0;
+        for (let i = 0; i < data.length && i < period; i++) {
+            if (data[i] !== null) {
+                sum += data[i];
+                count++;
+            }
+        }
+        
+        let ema = count > 0 ? sum / count : null;
+        
+        for (let i = 0; i < data.length; i++) {
+            if (i < period - 1) {
+                result.push(null);
+            } else if (i === period - 1) {
+                result.push(ema);
+            } else {
+                if (data[i] !== null && ema !== null) {
+                    ema = (data[i] - ema) * multiplier + ema;
+                    result.push(ema);
+                } else {
+                    result.push(null);
+                }
+            }
+        }
+        
+        return result;
+    }
+
+    // 모멘텀 계산 (10일)
+    function calculateMomentum(data, period = 10) {
+        const result = [];
+        for (let i = 0; i < data.length; i++) {
+            if (i < period) {
+                result.push(null);
+            } else {
+                result.push(((data[i].close - data[i - period].close) / data[i - period].close) * 100);
+            }
+        }
+        return result;
+    }
+
+    // 지표 토글 함수
+    function toggleIndicator(indicator) {
+        const btn = document.querySelector(`[data-indicator="${indicator}"]`);
+        
+        if (activeIndicators.has(indicator)) {
+            activeIndicators.delete(indicator);
+            btn.classList.remove('active');
+        } else {
+            activeIndicators.add(indicator);
+            btn.classList.add('active');
+        }
+        
+        drawChart();
+    }
+
+    function updateCurrentRate() {
+        if (allData.length === 0) return;
+
+        const latest = allData[allData.length - 1];
+        const previous = allData.length > 1 ? allData[allData.length - 2] : latest;
+
+        const change = latest.close - previous.close;
+        const changePercent = (change / previous.close) * 100;
+
+        document.getElementById('currentRate').textContent = `₩${latest.close.toFixed(2)}`;
+        document.getElementById('todayHigh').textContent = `₩${latest.high.toFixed(2)}`;
+        document.getElementById('todayLow').textContent = `₩${latest.low.toFixed(2)}`;
+
+        const rateChangeEl = document.getElementById('rateChange');
+        const arrow = change >= 0 ? '▲' : '▼';
+        const sign = change >= 0 ? '+' : '';
+        rateChangeEl.innerHTML = `<span>${arrow} ${sign}${change.toFixed(2)} (${sign}${changePercent.toFixed(2)}%)</span>`;
+        rateChangeEl.className = 'rate-change ' + (change >= 0 ? 'positive' : 'negative');
+    }
+
+    function changePeriod(period) {
+        currentPeriod = period;
+        
+        // 버튼 활성화 상태 변경
+        document.querySelectorAll('.period-btn').forEach(btn => {
+            btn.classList.remove('active');
+        });
+        event.target.classList.add('active');
+
+        // 차트 다시 그리기
+        drawChart();
+    }
+
+    function getFilteredData() {
+        if (currentPeriod === 'ALL') {
+            return allData;
+        }
+
+        const now = new Date();
+        let startDate = new Date();
+
+        switch(currentPeriod) {
+            case '1M':
+                startDate.setMonth(now.getMonth() - 1);
+                break;
+            case '3M':
+                startDate.setMonth(now.getMonth() - 3);
+                break;
+            case '6M':
+                startDate.setMonth(now.getMonth() - 6);
+                break;
+            case '1Y':
+                startDate.setFullYear(now.getFullYear() - 1);
+                break;
+            case '3Y':
+                startDate.setFullYear(now.getFullYear() - 3);
+                break;
+            case '5Y':
+                startDate.setFullYear(now.getFullYear() - 5);
+                break;
+        }
+
+        return allData.filter(d => new Date(d.date) >= startDate);
+    }
+
+    function drawChart() {
+        if (allData.length === 0 || !allIndicators) return;
+
+        console.log(`Drawing chart with ${allData.length} total data points, displaying period: ${currentPeriod}`);
+
+        // 전체 데이터로 차트 데이터 준비 (캔들스틱용)
+        const chartData = allData.map((d, index) => {
+            const openCloseAreSame = Math.abs(d.open - d.close) < 0.5;
+            
+            if (openCloseAreSame) {
+                const prevClose = index > 0 ? allData[index - 1].close : d.low;
+                const currentClose = d.close;
+                
+                if (currentClose >= prevClose) {
+                    return {
+                        x: new Date(d.date).getTime(),
+                        o: prevClose,
+                        h: d.high,
+                        l: d.low,
+                        c: currentClose
+                    };
+                } else {
+                    return {
+                        x: new Date(d.date).getTime(),
+                        o: prevClose,
+                        h: d.high,
+                        l: d.low,
+                        c: currentClose
+                    };
+                }
+            } else {
+                return {
+                    x: new Date(d.date).getTime(),
+                    o: d.open,
+                    h: d.high,
+                    l: d.low,
+                    c: d.close
+                };
+            }
+        });
+
+        // 표시할 기간 범위 계산
+        const now = new Date();
+        let startDate = new Date(allData[0].date);  // 기본값: 전체 데이터 시작
+        
+        if (currentPeriod !== 'ALL') {
+            startDate = new Date();
+            switch(currentPeriod) {
+                case '1M':
+                    startDate.setMonth(now.getMonth() - 1);
+                    break;
+                case '3M':
+                    startDate.setMonth(now.getMonth() - 3);
+                    break;
+                case '6M':
+                    startDate.setMonth(now.getMonth() - 6);
+                    break;
+                case '1Y':
+                    startDate.setFullYear(now.getFullYear() - 1);
+                    break;
+                case '3Y':
+                    startDate.setFullYear(now.getFullYear() - 3);
+                    break;
+                case '5Y':
+                    startDate.setFullYear(now.getFullYear() - 5);
+                    break;
+            }
+        }
+
+        const startTimestamp = startDate.getTime();
+        const endTimestamp = now.getTime();
+
+        console.log('Display range:', new Date(startTimestamp), 'to', new Date(endTimestamp));
+
+        // 기존 차트 제거
+        if (chartInstance) {
+            chartInstance.destroy();
+        }
+
+        // 데이터셋 준비
+        const datasets = [{
+            label: 'USD/KRW',
+            data: chartData,
+            type: 'candlestick',
+            borderColor: {
+                up: '#ef4444',
+                down: '#3b82f6',
+                unchanged: '#999999'
+            },
+            backgroundColor: {
+                up: 'rgba(239, 68, 68, 0.8)',
+                down: 'rgba(59, 130, 246, 0.8)',
+                unchanged: 'rgba(153, 153, 153, 0.8)'
+            },
+            color: {
+                up: '#ef4444',
+                down: '#3b82f6',
+                unchanged: '#999999'
+            },
+            order: 0
+        }];
+
+        // 이동평균선 추가 - 볼린저 밴드와 겹치지 않는 색상
+        const maColors = {
+            ma5: '#f59e0b',      // 주황색 (amber-500)
+            ma10: '#10b981',     // 초록색 (emerald-500)
+            ma20: '#06b6d4',     // 청록색 (cyan-500)
+            ma50: '#8b5cf6',     // 보라색 (violet-500)
+            ma120: '#ec4899',    // 분홍색 (pink-500)
+            ma200: '#14b8a6'     // 청록색 (teal-500)
+        };
+
+        const maPeriods = {
+            ma5: 5,
+            ma10: 10,
+            ma20: 20,
+            ma50: 50,
+            ma120: 120,
+            ma200: 200
+        };
+
+        for (const [indicator, period] of Object.entries(maPeriods)) {
+            if (activeIndicators.has(indicator)) {
+                // 서버에서 계산된 전체 MA 데이터 사용
+                const fullMAData = allIndicators[indicator];
+                
+                datasets.push({
+                    label: `MA${period}`,
+                    data: fullMAData.map((value, index) => ({
+                        x: new Date(allData[index].date).getTime(),
+                        y: value
+                    })),
+                    type: 'line',
+                    borderColor: maColors[indicator],
+                    backgroundColor: 'transparent',
+                    borderWidth: 1.5,  // 얇게 변경
+                    pointRadius: 0,
+                    order: 1
+                });
+            }
+        }
+
+        // 볼린저 밴드 추가
+        if (activeIndicators.has('bollinger')) {
+            datasets.push({
+                label: '볼린저 상단',
+                data: allIndicators.bollinger.upper.map((value, index) => ({
+                    x: new Date(allData[index].date).getTime(),
+                    y: value
+                })),
+                type: 'line',
+                borderColor: '#ef4444',
+                backgroundColor: 'transparent',
+                borderWidth: 2.5,
+                pointRadius: 0,
+                order: 2
+            });
+            datasets.push({
+                label: '볼린저 중간',
+                data: allIndicators.bollinger.middle.map((value, index) => ({
+                    x: new Date(allData[index].date).getTime(),
+                    y: value
+                })),
+                type: 'line',
+                borderColor: '#a855f7',
+                backgroundColor: 'transparent',
+                borderWidth: 1.5,
+                borderDash: [5, 5],
+                pointRadius: 0,
+                order: 2
+            });
+            datasets.push({
+                label: '볼린저 하단',
+                data: allIndicators.bollinger.lower.map((value, index) => ({
+                    x: new Date(allData[index].date).getTime(),
+                    y: value
+                })),
+                type: 'line',
+                borderColor: '#3b82f6',
+                backgroundColor: 'transparent',
+                borderWidth: 2.5,
+                pointRadius: 0,
+                order: 2
+            });
+        }
+
+        // 일목균형표 추가 (선행스팬은 미래 26일 포함)
+        if (activeIndicators.has('ichimoku')) {
+            // 선행스팬은 미래 26일을 포함
+            const senkouAData = allIndicators.ichimoku.senkou_a;
+            const senkouBData = allIndicators.ichimoku.senkou_b;
+            
+            // 미래 날짜 생성 (마지막 날짜 + 26일)
+            const lastDate = new Date(allData[allData.length - 1].date);
+            const extendedDates = [...allData.map(d => d.date)];
+            for (let i = 1; i <= 26; i++) {
+                const futureDate = new Date(lastDate);
+                futureDate.setDate(futureDate.getDate() + i);
+                extendedDates.push(futureDate.toISOString().split('T')[0]);
+            }
+            
+            datasets.push({
+                label: '전환선',
+                data: allIndicators.ichimoku.tenkan.map((value, index) => ({
+                    x: new Date(allData[index].date).getTime(),
+                    y: value
+                })),
+                type: 'line',
+                borderColor: '#ef4444',
+                backgroundColor: 'transparent',
+                borderWidth: 1.5,
+                pointRadius: 0,
+                order: 2
+            });
+            
+            datasets.push({
+                label: '기준선',
+                data: allIndicators.ichimoku.kijun.map((value, index) => ({
+                    x: new Date(allData[index].date).getTime(),
+                    y: value
+                })),
+                type: 'line',
+                borderColor: '#3b82f6',
+                backgroundColor: 'transparent',
+                borderWidth: 1.5,
+                pointRadius: 0,
+                order: 2
+            });
+            
+            datasets.push({
+                label: '선행스팬A',
+                data: senkouAData.map((value, index) => ({
+                    x: new Date(extendedDates[index]).getTime(),
+                    y: value
+                })).filter(d => d.y !== null && !isNaN(d.y)),
+                type: 'line',
+                borderColor: 'rgba(34, 197, 94, 0.6)',
+                backgroundColor: 'rgba(34, 197, 94, 0.1)',
+                fill: '+1',
+                borderWidth: 1,
+                pointRadius: 0,
+                order: 3
+            });
+            
+            datasets.push({
+                label: '선행스팬B',
+                data: senkouBData.map((value, index) => ({
+                    x: new Date(extendedDates[index]).getTime(),
+                    y: value
+                })).filter(d => d.y !== null && !isNaN(d.y)),
+                type: 'line',
+                borderColor: 'rgba(239, 68, 68, 0.6)',
+                backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                borderWidth: 1,
+                pointRadius: 0,
+                order: 3
+            });
+            
+            // 후행스팬 추가
+            datasets.push({
+                label: '후행스팬',
+                data: allIndicators.ichimoku.chikou.map((value, index) => ({
+                    x: new Date(allData[index].date).getTime(),
+                    y: value
+                })).filter(d => d.y !== null && !isNaN(d.y)),
+                type: 'line',
+                borderColor: '#10b981',
+                backgroundColor: 'transparent',
+                borderWidth: 1.5,
+                borderDash: [3, 3],
+                pointRadius: 0,
+                order: 2
+            });
+        }
+
+        // 캔들스틱 차트 생성
+        const ctx = document.getElementById('exchangeRateChart').getContext('2d');
+        chartInstance = new Chart(ctx, {
+            type: 'candlestick',
+            data: { datasets },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: true,
+                        position: 'top',
+                        align: 'start',
+                        labels: {
+                            boxWidth: 15,
+                            boxHeight: 2,
+                            padding: 10,
+                            font: {
+                                size: 11
+                            },
+                            filter: function(item, chart) {
+                                // USD/KRW 캔들스틱은 범례에서 제외
+                                return item.text !== 'USD/KRW';
+                            },
+                            usePointStyle: false
+                        }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const data = context.raw;
+                                
+                                // 캔들스틱 데이터인 경우
+                                if (data && data.o !== undefined) {
+                                    const isUp = data.c >= data.o;
+                                    const change = data.c - data.o;
+                                    const changeText = isUp ? `▲ +${change.toFixed(2)}` : `▼ ${change.toFixed(2)}`;
+                                    
+                                    return [
+                                        `시가: ₩${data.o.toFixed(2)}`,
+                                        `고가: ₩${data.h.toFixed(2)}`,
+                                        `저가: ₩${data.l.toFixed(2)}`,
+                                        `종가: ₩${data.c.toFixed(2)}`,
+                                        `변동: ${changeText}`
+                                    ];
+                                }
+                                // 지표 데이터인 경우
+                                return context.dataset.label + ': ₩' + context.parsed.y.toFixed(2);
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        type: 'timeseries',
+                        time: {
+                            unit: allData.length > 365 ? 'month' : 'day',
+                            displayFormats: {
+                                day: 'MMM dd',
+                                month: 'MMM yyyy'
+                            }
+                        },
+                        min: startTimestamp,  // 초기 표시 시작점
+                        max: endTimestamp,    // 초기 표시 끝점
+                        ticks: {
+                            source: 'data',
+                            autoSkip: true,
+                            maxTicksLimit: 20
+                        },
+                        grid: {
+                            display: false
+                        }
+                    },
+                    y: {
+                        position: 'right',
+                        ticks: {
+                            padding: -40,  // 그래프 영역 안쪽으로 이동
+                            color: 'rgba(0, 0, 0, 0.9)',
+                            backdropColor: 'rgba(255, 255, 255, 0.8)',  // 배경색 추가
+                            backdropPadding: 2,
+                            font: {
+                                size: 10,
+                                weight: '500'
+                            },
+                            callback: function(value) {
+                                return '₩' + value.toFixed(0);
+                            }
+                        },
+                        grid: {
+                            color: 'rgba(0, 0, 0, 0.05)',
+                            drawTicks: false  // 눈금 표시 제거
+                        }
+                    }
+                },
+                plugins: {
+                    zoom: {
+                        pan: {
+                            enabled: true,
+                            mode: 'x',
+                            onPanComplete: function({chart}) {
+                                // 메인 차트가 pan되면 보조 차트들도 동기화
+                                const xScale = chart.scales.x;
+                                const min = xScale.min;
+                                const max = xScale.max;
+                                
+                                if (macdChartInstance) {
+                                    macdChartInstance.options.scales.x.min = min;
+                                    macdChartInstance.options.scales.x.max = max;
+                                    macdChartInstance.update('none');
+                                }
+                                
+                                if (momentumChartInstance) {
+                                    momentumChartInstance.options.scales.x.min = min;
+                                    momentumChartInstance.options.scales.x.max = max;
+                                    momentumChartInstance.update('none');
+                                }
+                            }
+                        }
+                    },
+                    legend: {
+                        display: true,
+                        position: 'top',
+                        align: 'start',
+                        labels: {
+                            boxWidth: 15,
+                            font: { size: 11 },
+                            filter: function(item, chart) {
+                                if (item.text === 'USD/KRW') return true;
+                                const indicatorKey = item.text.toLowerCase().replace(/[^a-z0-9]/g, '');
+                                return activeIndicators.has(indicatorKey) || 
+                                       activeIndicators.has(item.text.split('(')[0].trim().toLowerCase());
+                            }
+                        }
+                    },
+                    tooltip: {
+                        mode: 'index',
+                        intersect: false,
+                        callbacks: {
+                            label: function(context) {
+                                const datasetLabel = context.dataset.label;
+                                
+                                // 캔들스틱 데이터인 경우
+                                if (datasetLabel === 'USD/KRW' && context.raw.o !== undefined) {
+                                    const data = context.raw;
+                                    const isUp = data.c >= data.o;
+                                    const change = data.c - data.o;
+                                    const changeText = isUp ? `▲ +${change.toFixed(2)}` : `▼ ${change.toFixed(2)}`;
+                                    
+                                    return [
+                                        `시가: ₩${data.o.toFixed(2)}`,
+                                        `고가: ₩${data.h.toFixed(2)}`,
+                                        `저가: ₩${data.l.toFixed(2)}`,
+                                        `종가: ₩${data.c.toFixed(2)}`,
+                                        `변동: ${changeText}`
+                                    ];
+                                }
+                                // 지표 데이터인 경우
+                                return context.dataset.label + ': ₩' + context.parsed.y.toFixed(2);
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        // MACD 차트
+        const macdDiv = document.getElementById('macdChart');
+        if (activeIndicators.has('macd')) {
+            macdDiv.style.display = 'block';
+            
+            if (macdChartInstance) {
+                macdChartInstance.destroy();
+            }
+            
+            const macdCtx = document.getElementById('macdCanvas').getContext('2d');
+            
+            macdChartInstance = new Chart(macdCtx, {
+                type: 'line',
+                data: {
+                    datasets: [
+                        {
+                            label: 'MACD',
+                            data: allIndicators.macd.macd.map((value, index) => ({
+                                x: new Date(allData[index].date).getTime(),
+                                y: value
+                            })),
+                            borderColor: '#3b82f6',
+                            backgroundColor: 'transparent',
+                            borderWidth: 2,
+                            pointRadius: 0
+                        },
+                        {
+                            label: 'Signal',
+                            data: allIndicators.macd.signal.map((value, index) => ({
+                                x: new Date(allData[index].date).getTime(),
+                                y: value
+                            })),
+                            borderColor: '#ef4444',
+                            backgroundColor: 'transparent',
+                            borderWidth: 2,
+                            pointRadius: 0
+                        },
+                        {
+                            label: 'Histogram',
+                            data: allIndicators.macd.histogram.map((value, index) => ({
+                                x: new Date(allData[index].date).getTime(),
+                                y: value
+                            })),
+                            type: 'bar',
+                            backgroundColor: allIndicators.macd.histogram.map(v => 
+                                v >= 0 ? 'rgba(34, 197, 94, 0.5)' : 'rgba(239, 68, 68, 0.5)'
+                            ),
+                            borderWidth: 0
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    animation: false,
+                    plugins: {
+                        zoom: {
+                            pan: {
+                                enabled: false  // MACD 차트는 pan 비활성화
+                            },
+                            zoom: {
+                                wheel: {
+                                    enabled: false
+                                },
+                                pinch: {
+                                    enabled: false
+                                }
+                            }
+                        },
+                        legend: {
+                            display: true,
+                            position: 'top',
+                            labels: { boxWidth: 15, font: { size: 11 } }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            type: 'timeseries',
+                            time: {
+                                unit: allData.length > 365 ? 'month' : 'day',
+                                displayFormats: {
+                                    day: 'MMM dd',
+                                    month: 'MMM yyyy'
+                                }
+                            },
+                            min: startTimestamp,
+                            max: endTimestamp,
+                            ticks: {
+                                source: 'data',
+                                autoSkip: true,
+                                maxTicksLimit: 10,
+                                maxRotation: 0,  // 회전 없음 (수평)
+                                minRotation: 0,
+                                font: {
+                                    size: 10
+                                }
+                            },
+                            grid: { display: false }
+                        },
+                        y: {
+                            position: 'right',
+                            ticks: {
+                                padding: -40,
+                                color: 'rgba(0, 0, 0, 0.9)',
+                                backdropColor: 'rgba(255, 255, 255, 0.8)',
+                                backdropPadding: 2,
+                                font: {
+                                    size: 10,
+                                    weight: '500'
+                                }
+                            },
+                            grid: { 
+                                color: 'rgba(0, 0, 0, 0.05)',
+                                drawTicks: false
+                            }
+                        }
+                    }
+                }
+            });
+        } else {
+            macdDiv.style.display = 'none';
+        }
+
+        // 모멘텀 차트
+        const momentumDiv = document.getElementById('momentumChart');
+        if (activeIndicators.has('momentum')) {
+            momentumDiv.style.display = 'block';
+            
+            if (momentumChartInstance) {
+                momentumChartInstance.destroy();
+            }
+            
+            const momentumCtx = document.getElementById('momentumCanvas').getContext('2d');
+            
+            momentumChartInstance = new Chart(momentumCtx, {
+                type: 'line',
+                data: {
+                    datasets: [
+                        {
+                            label: '모멘텀',
+                            data: allIndicators.momentum.map((value, index) => ({
+                                x: new Date(allData[index].date).getTime(),
+                                y: value
+                            })),
+                            borderColor: '#8b5cf6',
+                            backgroundColor: 'rgba(139, 92, 246, 0.1)',
+                            borderWidth: 2,
+                            fill: true,
+                            pointRadius: 0
+                        },
+                        {
+                            label: '기준선 (0)',
+                            data: allData.map((d, index) => ({
+                                x: new Date(d.date).getTime(),
+                                y: 0
+                            })),
+                            borderColor: '#999999',
+                            backgroundColor: 'transparent',
+                            borderWidth: 1,
+                            borderDash: [5, 5],
+                            pointRadius: 0
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    animation: false,
+                    plugins: {
+                        zoom: {
+                            pan: {
+                                enabled: false  // Momentum 차트는 pan 비활성화
+                            },
+                            zoom: {
+                                wheel: {
+                                    enabled: false
+                                },
+                                pinch: {
+                                    enabled: false
+                                }
+                            }
+                        },
+                        legend: {
+                            display: true,
+                            position: 'top',
+                            labels: { boxWidth: 15, font: { size: 11 } }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            type: 'timeseries',
+                            time: {
+                                unit: allData.length > 365 ? 'month' : 'day',
+                                displayFormats: {
+                                    day: 'MMM dd',
+                                    month: 'MMM yyyy'
+                                }
+                            },
+                            min: startTimestamp,
+                            max: endTimestamp,
+                            ticks: {
+                                source: 'data',
+                                autoSkip: true,
+                                maxTicksLimit: 10,
+                                maxRotation: 0,  // 회전 없음 (수평)
+                                minRotation: 0,
+                                font: {
+                                    size: 10
+                                }
+                            },
+                            grid: { display: false }
+                        },
+                        y: {
+                            position: 'right',
+                            ticks: {
+                                padding: -40,
+                                color: 'rgba(0, 0, 0, 0.9)',
+                                backdropColor: 'rgba(255, 255, 255, 0.8)',
+                                backdropPadding: 2,
+                                font: {
+                                    size: 10,
+                                    weight: '500'
+                                },
+                                callback: function(value) {
+                                    return value.toFixed(1) + '%';
+                                }
+                            },
+                            grid: { 
+                                color: 'rgba(0, 0, 0, 0.05)',
+                                drawTicks: false
+                            }
+                        }
+                    }
+                }
+            });
+        } else {
+            momentumDiv.style.display = 'none';
+        }
+    }
+
+    // 페이지 로드 시 데이터 로드
+    loadExchangeRate();
+</script>
+{% endblock %}
+
+

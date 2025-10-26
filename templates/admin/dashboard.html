@@ -65,6 +65,39 @@
         </div>
     </div>
 
+    <!-- 환율 캐시 통계 -->
+    <div class="row" style="margin-bottom: 30px;">
+        <div class="col-md-12">
+            <div class="panel panel-default">
+                <div class="panel-heading">
+                    <h3 class="panel-title">💱 환율 캐시 데이터</h3>
+                </div>
+                <div class="panel-body">
+                    <div class="row text-center">
+                        <div class="col-md-4">
+                            <h4>📊 총 레코드 수</h4>
+                            <p style="font-size: 32px; font-weight: bold; color: #5bc0de;">
+                                {{ "{:,}".format(stats.exchange_rate_records) }}
+                            </p>
+                        </div>
+                        <div class="col-md-4">
+                            <h4>📅 시작 날짜</h4>
+                            <p style="font-size: 24px; font-weight: bold; color: #5cb85c;">
+                                {{ stats.exchange_rate_start }}
+                            </p>
+                        </div>
+                        <div class="col-md-4">
+                            <h4>📅 종료 날짜</h4>
+                            <p style="font-size: 24px; font-weight: bold; color: #f0ad4e;">
+                                {{ stats.exchange_rate_end }}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- 회원 유형 통계 -->
     <div class="row" style="margin-bottom: 30px;">
         <div class="col-md-12">

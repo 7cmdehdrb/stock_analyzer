@@ -2,6 +2,7 @@ import io
 import os
 import sqlite3
 import traceback
+import json
 from datetime import datetime, timedelta
 import hashlib
 import hmac
@@ -39,8 +40,9 @@ openai.api_key = os.getenv("OPENAI_API_KEY")
 DEBUG = os.getenv("DEBUG", "False").lower() == "true"
 
 # AI 분석 rate limiting과 캐싱을 위한 딕셔너리
-ai_analysis_cache = {}  # {ip: {"timestamp": datetime, "result": dict}}
-ai_analysis_rate_limit = {}  # {ip: last_request_time}
+# AI 분석 rate limiting과 캐싱을 위한 딕셔너리 (user_id 기반)
+ai_analysis_cache = {}  # {user_id: {"timestamp": datetime, "result": dict}}
+ai_analysis_rate_limit = {}  # {user_id: last_request_time}
 
 # DB 파일 경로
 DB_PATH = os.path.join(os.path.dirname(__file__), "stock_cache.db")
@@ -135,15 +137,32 @@ class EmailVerification(db.Model):
         return f"<EmailVerification {self.email}>"
 
 
+class ExchangeRateCache(db.Model):
+    """환율 데이터 캐시 (USD/KRW)"""
+
+    __tablename__ = "exchange_rate_cache"
+
+    date = db.Column(db.String(10), primary_key=True)  # YYYY-MM-DD
+    open = db.Column(db.Float, nullable=False)
+    high = db.Column(db.Float, nullable=False)
+    low = db.Column(db.Float, nullable=False)
+    close = db.Column(db.Float, nullable=False)
+    volume = db.Column(db.Float, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.now)
+
+    def __repr__(self):
+        return f"<ExchangeRate {self.date} {self.close}>"
+
+
 # Flask-Admin ModelView 정의
 class StockPriceCacheAdmin(ModelView):
     def is_accessible(self):
         """접근 권한 확인"""
-        return session.get('admin_authenticated', False)
+        return session.get("admin_authenticated", False)
 
     def inaccessible_callback(self, name, **kwargs):
         """접근 불가능할 때 로그인 페이지로 리다이렉트"""
-        return redirect(url_for('admin_login', next=request.url))
+        return redirect(url_for("admin_login", next=request.url))
 
     column_list = ["ticker", "date", "close_price", "created_at"]
     column_searchable_list = ["ticker"]
@@ -157,11 +176,11 @@ class StockPriceCacheAdmin(ModelView):
 class SavedPortfolioAdmin(ModelView):
     def is_accessible(self):
         """접근 권한 확인"""
-        return session.get('admin_authenticated', False)
+        return session.get("admin_authenticated", False)
 
     def inaccessible_callback(self, name, **kwargs):
         """접근 불가능할 때 로그인 페이지로 리다이렉트"""
-        return redirect(url_for('admin_login', next=request.url))
+        return redirect(url_for("admin_login", next=request.url))
 
     column_list = [
         "id",
@@ -188,11 +207,11 @@ class SavedPortfolioAdmin(ModelView):
 class UserAdmin(ModelView):
     def is_accessible(self):
         """접근 권한 확인"""
-        return session.get('admin_authenticated', False)
+        return session.get("admin_authenticated", False)
 
     def inaccessible_callback(self, name, **kwargs):
         """접근 불가능할 때 로그인 페이지로 리다이렉트"""
-        return redirect(url_for('admin_login', next=request.url))
+        return redirect(url_for("admin_login", next=request.url))
 
     column_list = [
         "id",
@@ -239,11 +258,11 @@ class UserAdmin(ModelView):
 class EmailVerificationAdmin(ModelView):
     def is_accessible(self):
         """접근 권한 확인"""
-        return session.get('admin_authenticated', False)
+        return session.get("admin_authenticated", False)
 
     def inaccessible_callback(self, name, **kwargs):
         """접근 불가능할 때 로그인 페이지로 리다이렉트"""
-        return redirect(url_for('admin_login', next=request.url))
+        return redirect(url_for("admin_login", next=request.url))
 
     column_list = ["id", "email", "code", "created_at", "expires_at", "is_verified"]
     column_searchable_list = ["email", "code"]
@@ -255,16 +274,61 @@ class EmailVerificationAdmin(ModelView):
     export_types = ["csv", "xlsx"]
 
 
+class ExchangeRateCacheAdmin(ModelView):
+    def is_accessible(self):
+        """접근 권한 확인"""
+        return session.get("admin_authenticated", False)
+
+    def inaccessible_callback(self, name, **kwargs):
+        """접근 불가능할 때 로그인 페이지로 리다이렉트"""
+        return redirect(url_for("admin_login", next=request.url))
+
+    column_list = ["date", "open", "high", "low", "close", "volume", "created_at"]
+    column_searchable_list = ["date"]
+    column_sortable_list = [
+        "date",
+        "open",
+        "high",
+        "low",
+        "close",
+        "volume",
+        "created_at",
+    ]
+    column_default_sort = [("date", True)]  # 날짜 내림차순
+    column_filters = ["date"]
+    page_size = 50
+    can_export = True
+    export_types = ["csv", "xlsx"]
+
+    column_labels = {
+        "date": "날짜",
+        "open": "시가",
+        "high": "고가",
+        "low": "저가",
+        "close": "종가",
+        "volume": "거래량",
+        "created_at": "생성일시",
+    }
+
+    column_formatters = {
+        "open": lambda v, c, m, p: f"₩{m.open:.2f}",
+        "high": lambda v, c, m, p: f"₩{m.high:.2f}",
+        "low": lambda v, c, m, p: f"₩{m.low:.2f}",
+        "close": lambda v, c, m, p: f"₩{m.close:.2f}",
+        "volume": lambda v, c, m, p: f"{m.volume:,.0f}",
+    }
+
+
 class DashboardView(AdminIndexView):
     """커스텀 대시보드 with 비밀번호 인증"""
 
     def is_accessible(self):
         """접근 권한 확인 - 세션에 admin_authenticated가 있는지 체크"""
-        return session.get('admin_authenticated', False)
+        return session.get("admin_authenticated", False)
 
     def inaccessible_callback(self, name, **kwargs):
         """접근 불가능할 때 로그인 페이지로 리다이렉트"""
-        return redirect(url_for('admin_login', next=request.url))
+        return redirect(url_for("admin_login", next=request.url))
 
     @expose("/")
     def index(self):
@@ -314,6 +378,12 @@ class DashboardView(AdminIndexView):
             cached_tickers = cursor.fetchone()[0]
             cursor.execute("SELECT COUNT(*) FROM stock_price_cache")
             cached_records = cursor.fetchone()[0]
+
+            # 환율 캐시 데이터
+            cursor.execute("SELECT COUNT(*) FROM exchange_rate_cache")
+            exchange_rate_records = cursor.fetchone()[0]
+            cursor.execute("SELECT MIN(date), MAX(date) FROM exchange_rate_cache")
+            exchange_rate_range = cursor.fetchone()
             conn.close()
 
             return {
@@ -324,6 +394,13 @@ class DashboardView(AdminIndexView):
                 "today_portfolios": today_portfolios,
                 "cached_tickers": cached_tickers,
                 "cached_records": cached_records,
+                "exchange_rate_records": exchange_rate_records,
+                "exchange_rate_start": (
+                    exchange_rate_range[0] if exchange_rate_range[0] else "N/A"
+                ),
+                "exchange_rate_end": (
+                    exchange_rate_range[1] if exchange_rate_range[1] else "N/A"
+                ),
             }
         except Exception as e:
             app.logger.error(f"통계 데이터 수집 오류: {e}")
@@ -335,6 +412,9 @@ class DashboardView(AdminIndexView):
                 "today_portfolios": 0,
                 "cached_tickers": 0,
                 "cached_records": 0,
+                "exchange_rate_records": 0,
+                "exchange_rate_start": "N/A",
+                "exchange_rate_end": "N/A",
             }
 
     def get_recent_users(self, limit=5):
@@ -405,6 +485,9 @@ admin.add_view(SavedPortfolioAdmin(SavedPortfolio, db.session, name="Portfolios"
 admin.add_view(UserAdmin(User, db.session, name="Users"))
 admin.add_view(
     EmailVerificationAdmin(EmailVerification, db.session, name="Email Verifications")
+)
+admin.add_view(
+    ExchangeRateCacheAdmin(ExchangeRateCache, db.session, name="Exchange Rates")
 )
 
 
@@ -583,12 +666,46 @@ def get_current_exchange_rate():
         return 1350.0
 
 
-def fetch_stock_data(ticker, start_date, end_date):
+def get_stock_name(ticker):
+    """티커로부터 종목명 가져오기
+
+    Args:
+        ticker: 주식 티커 심볼
+
+    Returns:
+        종목명 (가져오기 실패 시 티커 반환)
+    """
+    try:
+        stock = yf.Ticker(ticker)
+        info = stock.info
+
+        # longName 우선, 없으면 shortName, 둘 다 없으면 티커 반환
+        name = info.get("longName") or info.get("shortName") or ticker
+
+        # 종목명이 너무 길면 shortName 사용
+        if len(name) > 50 and info.get("shortName"):
+            name = info.get("shortName")
+
+        return name
+    except Exception as e:
+        app.logger.warning(f"⚠ Could not fetch name for {ticker}: {e}")
+        return ticker
+
+
+def fetch_stock_data(ticker, start_date, end_date, max_retries=3):
     """Yahoo Finance에서 주가 데이터 가져오기 (DB 캐시 활용)
 
     상장일이 start_date보다 늦은 경우에도 상장 이후 데이터를 반환하여
     fill_missing_dates에서 상장일 이전 구간을 상장 시 가격으로 채울 수 있도록 함
+
+    Args:
+        ticker: 티커 심볼
+        start_date: 시작 날짜
+        end_date: 종료 날짜
+        max_retries: API 실패 시 최대 재시도 횟수 (기본값: 3)
     """
+    import time
+
     try:
         # 1. 먼저 DB 캐시에서 데이터 조회
         cached_data = get_cached_prices(ticker, start_date, end_date)
@@ -602,34 +719,96 @@ def fetch_stock_data(ticker, start_date, end_date):
             cached_end = cached_data.index.max()
 
             # 캐시가 요청 범위를 모두 커버하는지 확인 (±7일 허용)
-            # 또는 상장일이 start_date 이후인 경우에도 데이터 반환
-            if cached_start <= expected_start + timedelta(
-                days=7
-            ) and cached_end >= expected_end - timedelta(days=7):
-                return cached_data
-            elif cached_end >= expected_end - timedelta(days=7):
-                # 상장일이 늦어도 end_date까지 데이터가 있으면 반환
-                return cached_data
+            # 시작일과 종료일 모두 확인해야 함
+            start_covered = cached_start <= expected_start + timedelta(days=7)
+            end_covered = cached_end >= expected_end - timedelta(days=7)
 
-        # 3. 캐시에 없으면 Yahoo Finance에서 가져오기
-        stock = yf.Ticker(ticker)
-        data = stock.history(start=start_date, end=end_date)
+            if start_covered and end_covered:
+                # 캐시가 요청 범위를 완전히 커버하는 경우
+                app.logger.info(
+                    f"✓ Using cached data for {ticker} "
+                    f"(cached: {cached_start.date()} ~ {cached_end.date()}, "
+                    f"requested: {expected_start.date()} ~ {expected_end.date()})"
+                )
+                return cached_data
+            else:
+                # 캐시가 불완전한 경우 - API에서 다시 가져와야 함
+                app.logger.info(
+                    f"⚠ Cache incomplete for {ticker}: "
+                    f"cached={cached_start.date()}~{cached_end.date()}, "
+                    f"requested={expected_start.date()}~{expected_end.date()}, "
+                    f"start_covered={start_covered}, end_covered={end_covered}"
+                )
+                # 캐시를 사용하지 않고 API로 새로 가져옴
+
+        # 3. 캐시에 없으면 Yahoo Finance에서 가져오기 (재시도 로직 추가)
+        data = None
+        last_error = None
+
+        for attempt in range(max_retries):
+            try:
+                stock = yf.Ticker(ticker)
+                data = stock.history(start=start_date, end=end_date)
+
+                # 데이터가 성공적으로 가져와졌으면 재시도 루프 종료
+                if not data.empty or attempt == max_retries - 1:
+                    break
+
+            except Exception as e:
+                last_error = e
+                app.logger.warning(
+                    f"⚠ Attempt {attempt + 1}/{max_retries} failed for {ticker}: {e}"
+                )
+
+                # 마지막 시도가 아니면 잠시 대기 후 재시도
+                if attempt < max_retries - 1:
+                    time.sleep(1)  # 1초 대기
+                    continue
+                else:
+                    # 마지막 시도도 실패
+                    break
 
         # 데이터가 비어있는 경우 (상장일이 늦을 수 있음)
-        if data.empty:
+        if data is None or data.empty:
             # 더 넓은 범위로 다시 시도 (최근 5년 또는 상장일부터)
             app.logger.warning(
                 f"⚠ No data for {ticker} in requested range, trying broader range..."
             )
-            data = stock.history(period="5y")
 
-            if data.empty:
-                app.logger.warning(f"❌ {ticker}: Still no data available")
+            for attempt in range(max_retries):
+                try:
+                    stock = yf.Ticker(ticker)
+                    data = stock.history(period="5y")
+
+                    if not data.empty or attempt == max_retries - 1:
+                        break
+
+                except Exception as e:
+                    last_error = e
+                    app.logger.warning(
+                        f"⚠ Broad range attempt {attempt + 1}/{max_retries} failed for {ticker}: {e}"
+                    )
+
+                    if attempt < max_retries - 1:
+                        time.sleep(1)
+                        continue
+                    else:
+                        break
+
+            if data is None or data.empty:
+                if last_error:
+                    app.logger.warning(
+                        f"❌ {ticker}: Failed after {max_retries} attempts. Last error: {last_error}"
+                    )
+                else:
+                    app.logger.warning(
+                        f"❌ {ticker}: No data available (symbol may be delisted)"
+                    )
                 return None
             else:
                 # 상장일 이후 데이터가 있음
                 listing_date: pd.Timestamp = data.index.min()
-                app.logger.warning(
+                app.logger.info(
                     f"  ℹ {ticker} listing date appears to be around {listing_date.date()}"
                 )
 
@@ -648,28 +827,49 @@ def fetch_stock_data(ticker, start_date, end_date):
 
         # 4. 새로 가져온 데이터를 DB에 저장
         save_prices_to_cache(ticker, price_data)
+        app.logger.info(
+            f"✓ Successfully fetched and cached {len(price_data)} data points for {ticker}"
+        )
 
         return price_data
 
     except Exception as e:
-        app.logger.warning(f"❌ Error fetching {ticker}: {e}")
+        app.logger.warning(f"❌ Unexpected error fetching {ticker}: {e}")
+        import traceback
+
+        app.logger.warning(traceback.format_exc())
         return None
 
 
 def normalize_ticker(ticker, country):
-    """티커 정규화 (한국 종목에 .KS 자동 추가)"""
+    """티커 정규화 (한국 종목에 .KS 자동 추가)
+
+    한국 주식 티커는 6자리 숫자이므로, 앞의 0이 제거되지 않도록 처리
+    """
     ticker = str(ticker).strip()
 
     # 한국 종목인 경우
     if country == "한국":
-        # 숫자로만 이루어진 경우 (예: 005930)
+        # 이미 .KS나 .KQ가 붙어있는 경우 그대로 반환
+        if ticker.endswith(".KS") or ticker.endswith(".KQ"):
+            # 티커 부분만 추출해서 6자리로 패딩
+            ticker_code = ticker.split(".")[0]
+            suffix = ticker.split(".")[1]
+            if ticker_code.isdigit():
+                ticker_code = ticker_code.zfill(6)  # 6자리로 패딩
+            return f"{ticker_code}.{suffix}"
+
+        # 숫자로만 이루어진 경우 (예: 005930 또는 5930)
         if ticker.isdigit():
+            # 한국 주식 티커는 6자리이므로 앞에 0을 채워줌
+            ticker = ticker.zfill(6)
             ticker = f"{ticker}.KS"
             return ticker
-        # 이미 .KS나 .KQ가 붙어있지 않은 경우
-        elif not (ticker.endswith(".KS") or ticker.endswith(".KQ")):
-            ticker = f"{ticker}.KS"
-            return ticker
+
+        # 숫자가 아니지만 .KS/.KQ가 없는 경우 (잘못된 입력)
+        # 기본적으로 .KS 추가
+        ticker = f"{ticker}.KS"
+        return ticker
 
     return ticker
 
@@ -714,7 +914,7 @@ def fill_missing_dates(price_series, start_date, end_date):
         보간된 주가 시계열 데이터
     """
     if price_series is None or len(price_series) == 0:
-        print("  ⚠ fill_missing_dates: No data provided")
+        app.logger.warning("⚠ fill_missing_dates: No data provided")
         return None
 
     try:
@@ -726,7 +926,25 @@ def fill_missing_dates(price_series, start_date, end_date):
         if not isinstance(price_series.index, pd.DatetimeIndex):
             price_series.index = pd.to_datetime(price_series.index)
 
-        # 전체 날짜 범위 생성 (모든 날짜 포함)
+        # start_date, end_date도 timezone-naive로 변환
+        start_date = pd.to_datetime(start_date)
+        end_date = pd.to_datetime(end_date)
+        if hasattr(start_date, "tz") and start_date.tz is not None:
+            start_date = start_date.tz_localize(None)
+        if hasattr(end_date, "tz") and end_date.tz is not None:
+            end_date = end_date.tz_localize(None)
+
+        # 데이터의 실제 시작일 (상장일)
+        actual_start = price_series.index.min()
+
+        # 만약 상장일이 분석 시작일보다 나중이면, 상장일을 새로운 시작일로 사용
+        effective_start = max(start_date, actual_start)
+
+        app.logger.info(
+            f"📅 fill_missing_dates: requested={start_date.date()}, actual={actual_start.date()}, effective={effective_start.date()}"
+        )
+
+        # 전체 날짜 범위 생성 (요청 시작일부터 종료일까지 모든 날짜 포함)
         all_dates = pd.date_range(start=start_date, end=end_date, freq="D")
 
         # 기존 데이터를 전체 날짜 범위로 확장
@@ -736,35 +954,394 @@ def fill_missing_dates(price_series, start_date, end_date):
         first_valid_date = price_series_filled.first_valid_index()
 
         if first_valid_date is None:
-            # 그냥 원본 데이터 반환 (날짜 확장 없이)
+            # 유효한 데이터가 하나도 없음
+            app.logger.warning("⚠ fill_missing_dates: No valid data after reindexing")
             return price_series
 
-        # 상장 이전 데이터: 상장 후 첫 가격으로 채움
+        # 상장일의 첫 가격
         first_price = price_series_filled[first_valid_date]
-        price_series_filled.loc[:first_valid_date] = first_price
 
-        # 상장 이후 빈 데이터: 선형 보간
+        # 상장 이전 날짜가 있는 경우: 상장 첫날 가격으로 채움 (backward fill)
+        if first_valid_date > all_dates[0]:
+            app.logger.info(
+                f"  📌 Filling pre-listing dates with first price: {first_price:.2f}"
+            )
+            price_series_filled.loc[:first_valid_date] = first_price
+
+        # 상장 이후 빈 데이터 (휴장일 등): 선형 보간
+        # interpolate는 NaN 사이의 값만 채우므로 먼저 실행
         price_series_filled = price_series_filled.interpolate(
             method="linear", limit_direction="forward"
         )
 
-        # 아직도 빈 값이 있다면 (끝 부분) forward fill
-        price_series_filled = price_series_filled.ffill()
+        # 아직도 빈 값이 있다면 (데이터 끝 부분) forward fill
+        if price_series_filled.isna().any():
+            price_series_filled = price_series_filled.ffill()
 
-        # 그래도 남아있는 NaN은 backward fill
-        price_series_filled = price_series_filled.bfill()
+        # 그래도 남아있는 NaN은 backward fill (데이터 시작 부분)
+        if price_series_filled.isna().any():
+            price_series_filled = price_series_filled.bfill()
+
+        # 최종 확인
+        if price_series_filled.isna().any():
+            nan_count = price_series_filled.isna().sum()
+            app.logger.warning(
+                f"⚠ Still {nan_count} NaN values after fill_missing_dates"
+            )
 
         filled_count = len(all_dates) - len(price_series)
+        app.logger.info(f"  ✓ Filled {filled_count} missing dates")
 
         return price_series_filled
 
     except Exception as e:
-        app.logger.warning(f"❌ Error in fill_missing_dates: {e}")
+        app.logger.error(f"❌ Error in fill_missing_dates: {e}")
         import traceback
 
-        traceback.print_exc()
+        app.logger.error(traceback.format_exc())
         # 오류 시 원본 데이터 반환
         return price_series
+
+
+def calculate_portfolio_returns_with_dca(
+    portfolio_df: pd.DataFrame,
+    dca_data: list,
+    start_date: pd.Timestamp,
+    base_currency="USD",
+):
+    """DCA(적립식 투자)가 포함된 포트폴리오 수익률 계산
+
+    각 투자 시점의 가격으로 주식을 매수하는 시뮬레이션을 수행합니다.
+    """
+    end_date = datetime.now()
+    exchange_rate = get_current_exchange_rate()
+
+    app.logger.info(f"📈 Calculating portfolio with DCA simulation")
+    app.logger.info(f"   Period: {start_date.date()} to {end_date.date()}")
+
+    # 날짜 범위 생성
+    date_range = pd.date_range(start=start_date, end=end_date, freq="D")
+
+    # 초기 포트폴리오 처리
+    portfolio_value_series = pd.Series(0.0, index=date_range)
+    total_initial_value = 0
+    total_initial_value_with_cash = 0
+    cash_holdings = {}
+    failed_tickers = []
+    portfolio_data = {}
+
+    # 1. 초기 보유 종목 처리 (DCA 아닌 일반 보유)
+    for _, row in portfolio_df.iterrows():
+        ticker = row["티커"]
+        quantity = row["보유량"]
+        country = row.get("국가", "미국")
+        asset_class = row.get("분류", "")
+
+        if asset_class == "현금":
+            if country == "한국" and base_currency == "USD":
+                cash_value = quantity / exchange_rate
+            elif country == "미국" and base_currency == "KRW":
+                cash_value = quantity * exchange_rate
+            else:
+                cash_value = quantity
+
+            cash_holdings[ticker] = {
+                "value": cash_value,
+                "country": country,
+                "ticker": ticker,
+            }
+            total_initial_value_with_cash += cash_value
+            continue
+
+        # 주가 데이터 가져오기
+        price_data = fetch_stock_data(ticker, start_date, end_date)
+        if price_data is None or len(price_data) == 0:
+            app.logger.warning(f"⚠ Skipping {ticker}: No price data")
+            failed_tickers.append(ticker)
+            continue
+
+        stock_name = row.get("종목명")
+        if not stock_name or pd.isna(stock_name):
+            stock_name = get_stock_name(ticker)
+
+        price_data = fill_missing_dates(price_data, start_date, end_date)
+        if price_data is None or len(price_data) == 0:
+            failed_tickers.append(ticker)
+            continue
+
+        # 환율 적용
+        if base_currency == "USD" and country == "한국":
+            price_data = price_data / exchange_rate
+        elif base_currency == "KRW" and country == "미국":
+            price_data = price_data * exchange_rate
+
+        # 초기 보유 종목의 가치 변화를 시리즈에 추가
+        stock_value_series = price_data * quantity
+        portfolio_value_series += stock_value_series.reindex(date_range, method="ffill")
+
+        initial_price = price_data.iloc[0]
+        initial_value = initial_price * quantity
+        total_initial_value += initial_value
+        total_initial_value_with_cash += initial_value
+
+        portfolio_data[ticker] = {
+            "prices": price_data,
+            "quantity": quantity,
+            "initial_value": initial_value,
+            "name": stock_name,
+            "country": country,
+        }
+
+    # 2. DCA 투자 시뮬레이션
+    # DCA의 경우 누적 투자 금액도 시계열로 추적해야 함
+    cumulative_invested_series = pd.Series(0.0, index=date_range)
+
+    # 초기 보유 자산의 투자액을 시작부터 추가
+    if total_initial_value_with_cash > 0:
+        cumulative_invested_series += total_initial_value_with_cash
+
+    has_dca = False
+
+    for dca_item in dca_data:
+        ticker = dca_item["ticker"]
+        quantity_per_period = dca_item["quantity"]
+        country = dca_item["country"]
+        frequency = dca_item["frequency"]
+
+        normalized_ticker = normalize_ticker(ticker, country)
+
+        app.logger.info(
+            f"  📊 Simulating DCA: {normalized_ticker} - {quantity_per_period} shares per {frequency}"
+        )
+
+        # 주가 데이터 가져오기
+        price_data = fetch_stock_data(normalized_ticker, start_date, end_date)
+        if price_data is None or len(price_data) == 0:
+            app.logger.warning(f"⚠ Skipping DCA for {normalized_ticker}: No price data")
+            failed_tickers.append(normalized_ticker)
+            continue
+
+        stock_name = get_stock_name(normalized_ticker)
+        price_data = fill_missing_dates(price_data, start_date, end_date)
+
+        if price_data is None or len(price_data) == 0:
+            failed_tickers.append(normalized_ticker)
+            continue
+
+        # 환율 적용
+        if base_currency == "USD" and country == "한국":
+            price_data = price_data / exchange_rate
+        elif base_currency == "KRW" and country == "미국":
+            price_data = price_data * exchange_rate
+
+        # 투자 일정 생성
+        if frequency == "weekly":
+            investment_dates = pd.date_range(
+                start=start_date, end=end_date, freq="W-MON"
+            )
+        elif frequency == "monthly":
+            investment_dates = pd.date_range(start=start_date, end=end_date, freq="MS")
+        elif frequency == "quarterly":
+            investment_dates = pd.date_range(start=start_date, end=end_date, freq="QS")
+        else:
+            investment_dates = pd.date_range(start=start_date, end=end_date, freq="MS")
+
+        # DCA 시뮬레이션: 각 투자 시점부터 현재까지의 가치 계산
+        # 각 날짜별 누적 보유 수량 추적
+        accumulated_shares_series = pd.Series(0.0, index=date_range)
+        total_invested_amount = 0
+        total_shares_accumulated = 0
+
+        has_dca = True  # DCA가 있음을 표시
+
+        for invest_date in investment_dates:
+            # 투자 날짜가 가격 데이터 범위 내에 있는지 확인
+            if invest_date not in price_data.index:
+                # 가장 가까운 다음 거래일 찾기
+                future_dates = price_data.index[price_data.index >= invest_date]
+                if len(future_dates) == 0:
+                    continue
+                invest_date = future_dates[0]
+
+            # 투자 시점의 가격으로 매수
+            purchase_price = price_data.loc[invest_date]
+            invested_amount = purchase_price * quantity_per_period
+            total_invested_amount += invested_amount
+            total_shares_accumulated += quantity_per_period
+
+            # 이 투자 시점 이후의 모든 날짜에 보유 수량 증가
+            future_dates_mask = date_range >= invest_date
+            accumulated_shares_series[future_dates_mask] += quantity_per_period
+
+            # 누적 투자 금액도 시계열로 추적 (투자 시점 이후 증가)
+            cumulative_invested_series[future_dates_mask] += invested_amount
+
+        # 각 날짜의 가치 = 그 시점까지 누적된 주식 수 × 현재 가격
+        price_series_aligned = price_data.reindex(date_range, method="ffill")
+        dca_value_series = accumulated_shares_series * price_series_aligned
+
+        # 전체 포트폴리오에 DCA 가치 추가
+        portfolio_value_series += dca_value_series
+
+        app.logger.info(
+            f"    ✓ DCA simulation: {len(investment_dates)} investments, {total_shares_accumulated} shares, total invested: {total_invested_amount:.2f}"
+        )
+
+        # 총 투자 금액을 초기 가치에 추가 (모든 투자 금액의 합)
+        total_initial_value += total_invested_amount
+        total_initial_value_with_cash += total_invested_amount
+
+        # DCA 종목을 기존 보유에 병합 (별도로 표시하지 않음)
+        if normalized_ticker in portfolio_data:
+            # 이미 있는 종목: 수량과 초기 가치 합산
+            portfolio_data[normalized_ticker]["quantity"] += total_shares_accumulated
+            portfolio_data[normalized_ticker]["initial_value"] += total_invested_amount
+            app.logger.info(
+                f"    ✓ Merged with existing position: {portfolio_data[normalized_ticker]['quantity']} total shares"
+            )
+        else:
+            # 새로운 종목: 추가
+            portfolio_data[normalized_ticker] = {
+                "prices": price_data,
+                "quantity": total_shares_accumulated,
+                "initial_value": total_invested_amount,
+                "name": stock_name,
+                "country": country,
+            }
+            app.logger.info(
+                f"    ✓ Added as new position: {total_shares_accumulated} shares"
+            )
+
+    # 수익률 계산
+    if has_dca:
+        # DCA가 있는 경우: 정규화된 포트폴리오 시리즈 사용
+        # 각 시점의 "투자 대비 가치 비율"을 계산하여 일반 수익률처럼 사용
+        # 0으로 나누기 방지
+        safe_invested = cumulative_invested_series.replace(0, 1e-10)
+
+        # 정규화된 포트폴리오 시리즈 = 가치 / 누적 투자액
+        # 이렇게 하면 "1.0 = 본전, 1.1 = 10% 수익" 형태가 됨
+        normalized_portfolio = portfolio_value_series / safe_invested
+
+        # 이제 일반적인 pct_change() 사용 가능
+        portfolio_returns = normalized_portfolio.pct_change().dropna()
+
+        app.logger.info(f"✓ DCA mode: Using normalized returns")
+        app.logger.info(f"  Initial invested: {cumulative_invested_series.iloc[0]:.2f}")
+        app.logger.info(f"  Final invested: {cumulative_invested_series.iloc[-1]:.2f}")
+        app.logger.info(f"  Final value: {portfolio_value_series.iloc[-1]:.2f}")
+        app.logger.info(f"  Final normalized: {normalized_portfolio.iloc[-1]:.4f}")
+    else:
+        # DCA가 없는 경우: 기존 방식 (일별 가격 변화율)
+        portfolio_returns = portfolio_value_series.pct_change().dropna()
+        app.logger.info(f"✓ Standard mode: Using daily price change returns")
+
+    app.logger.info(
+        f"✓ Portfolio calculation complete: {len(portfolio_data)} positions"
+    )
+
+    return (
+        portfolio_returns,
+        portfolio_value_series,
+        portfolio_data,
+        cash_holdings,
+        total_initial_value_with_cash,
+        failed_tickers,
+        has_dca,  # DCA 사용 여부 반환
+    )
+
+
+def apply_dca_to_portfolio(
+    portfolio_df: pd.DataFrame,
+    dca_data: list,
+    start_date: pd.Timestamp,
+    end_date: pd.Timestamp,
+):
+    """적립식 투자(DCA)를 포트폴리오에 적용
+
+    Args:
+        portfolio_df: 초기 포트폴리오 DataFrame
+        dca_data: 적립식 투자 정보 리스트 [{'ticker': 'AAPL', 'quantity': 1, 'country': '미국', 'frequency': 'monthly'}]
+        start_date: 시작 날짜
+        end_date: 종료 날짜
+
+    Returns:
+        최종 포트폴리오 DataFrame (누적된 수량으로 업데이트됨)
+    """
+    if not dca_data or len(dca_data) == 0:
+        return portfolio_df
+
+    app.logger.info(f"📈 Applying DCA investments: {len(dca_data)} items")
+
+    # 날짜 범위 생성
+    date_range = pd.date_range(start=start_date, end=end_date, freq="D")
+
+    # DCA 투자 일정 계산
+    for dca_item in dca_data:
+        ticker = dca_item["ticker"]
+        quantity_per_period = dca_item["quantity"]
+        country = dca_item["country"]
+        frequency = dca_item["frequency"]
+
+        # 티커 정규화
+        normalized_ticker = normalize_ticker(ticker, country)
+
+        app.logger.info(
+            f"  📊 DCA: {normalized_ticker} - {quantity_per_period} shares per {frequency}"
+        )
+
+        # 투자 주기에 따라 날짜 생성
+        if frequency == "weekly":
+            investment_dates = pd.date_range(
+                start=start_date, end=end_date, freq="W-MON"
+            )
+        elif frequency == "monthly":
+            investment_dates = pd.date_range(
+                start=start_date, end=end_date, freq="MS"
+            )  # Month Start
+        elif frequency == "quarterly":
+            investment_dates = pd.date_range(
+                start=start_date, end=end_date, freq="QS"
+            )  # Quarter Start
+        else:
+            app.logger.warning(
+                f"  ⚠️ Unknown frequency: {frequency}, defaulting to monthly"
+            )
+            investment_dates = pd.date_range(start=start_date, end=end_date, freq="MS")
+
+        # 총 투자 횟수
+        num_investments = len(investment_dates)
+        total_quantity = quantity_per_period * num_investments
+
+        app.logger.info(
+            f"    ✓ Total investments: {num_investments} times = {total_quantity} shares"
+        )
+
+        # 포트폴리오에 해당 티커가 이미 있는지 확인
+        existing_row = portfolio_df[portfolio_df["티커"] == normalized_ticker]
+
+        if not existing_row.empty:
+            # 기존 수량에 DCA 수량 추가
+            idx = existing_row.index[0]
+            original_quantity = portfolio_df.at[idx, "보유량"]
+            portfolio_df.at[idx, "보유량"] = original_quantity + total_quantity
+            app.logger.info(
+                f"    ✓ Updated existing position: {original_quantity} + {total_quantity} = {original_quantity + total_quantity}"
+            )
+        else:
+            # 새로운 행 추가
+            new_row = pd.DataFrame(
+                {
+                    "티커": [normalized_ticker],
+                    "보유량": [total_quantity],
+                    "국가": [country],
+                    "분류": ["주식"],
+                }
+            )
+            portfolio_df = pd.concat([portfolio_df, new_row], ignore_index=True)
+            app.logger.info(f"    ✓ Added new position: {total_quantity} shares")
+
+    return portfolio_df
 
 
 def calculate_portfolio_returns(
@@ -816,6 +1393,12 @@ def calculate_portfolio_returns(
             failed_tickers.append(ticker)  # 실패한 티커 기록
             continue
 
+        # 종목명 가져오기 (CSV에 있으면 사용, 없으면 API로 조회)
+        stock_name = row.get("종목명")
+        if not stock_name or pd.isna(stock_name):
+            stock_name = get_stock_name(ticker)
+            app.logger.info(f"📝 Fetched stock name for {ticker}: {stock_name}")
+
         # fill_missing_dates를 호출하여 상장일 이전 데이터를 상장 시 가격으로 채움
         app.logger.info(f"🔄 Filling missing dates for {ticker}...")
         price_data = fill_missing_dates(price_data, start_date, end_date)
@@ -846,7 +1429,7 @@ def calculate_portfolio_returns(
             "initial_value": initial_value,
             "country": country,
             "asset_class": asset_class,
-            "name": row.get("종목명", ticker),
+            "name": stock_name,  # CSV의 종목명 또는 API로 조회한 종목명
         }
 
     if not portfolio_data:
@@ -860,6 +1443,7 @@ def calculate_portfolio_returns(
             cash_holdings,
             total_initial_value_with_cash,
             failed_tickers,
+            False,  # has_dca = False
         )
 
     # 모든 날짜의 합집합 구하기 (start_date 이후만)
@@ -911,6 +1495,7 @@ def calculate_portfolio_returns(
         cash_holdings,
         total_initial_value_with_cash,
         failed_tickers,  # 실패한 티커 리스트 반환
+        False,  # has_dca = False (일반 포트폴리오)
     )
 
 
@@ -1104,14 +1689,6 @@ def calculate_metrics(portfolio_returns: pd.Series, benchmark_returns: pd.Series
     # app.logger.info(f"Benchmark variance: {benchmark_variance:.6f}")
     # app.logger.info(f"Beta: {beta:.4f}")
 
-    # 알파 (연간화)
-    benchmark_avg_return = benchmark_returns.mean() * trading_days
-    alpha = avg_return - (beta * benchmark_avg_return)
-
-    # app.logger.info(f"Portfolio annual return: {avg_return * 100:.2f}%")
-    # app.logger.info(f"Benchmark annual return: {benchmark_avg_return * 100:.2f}%")
-    # app.logger.info(f"Alpha: {alpha * 100:.2f}%")
-
     # 누적 수익률
     cumulative_return = (1 + portfolio_returns).prod() - 1
 
@@ -1131,8 +1708,17 @@ def calculate_metrics(portfolio_returns: pd.Series, benchmark_returns: pd.Series
     else:
         benchmark_cagr = 0
 
+    # 알파 계산: CAGR 기반으로 수정
+    # 알파 = 포트폴리오 CAGR - (베타 × 벤치마크 CAGR)
+    # 이는 CAPM 모델: E(R) = Rf + β(Rm - Rf)에서 Rf=0 가정시
+    # 알파 = 실제수익률 - 예상수익률 = CAGR - β × 벤치마크CAGR
+    alpha = cagr - (beta * benchmark_cagr)
+
     # 벤치마크 샤프/소티노 계산
     benchmark_std = benchmark_returns.std() * np.sqrt(trading_days)
+    benchmark_avg_return = (
+        benchmark_returns.mean() * trading_days
+    )  # 연간화된 평균 수익률
     benchmark_sharpe = benchmark_avg_return / benchmark_std if benchmark_std != 0 else 0
 
     benchmark_downside_returns = benchmark_returns[benchmark_returns < 0]
@@ -1335,7 +1921,7 @@ def prepare_holdings_table(
 @app.route("/")
 def index():
     """메인 페이지"""
-    return render_template("index.html")
+    return render_template("index.html", active_page="analyze")
 
 
 @app.route("/api/cache-stats", methods=["GET"])
@@ -1447,10 +2033,306 @@ def save_portfolio():
         return jsonify({"error": f"저장 중 오류가 발생했습니다: {str(e)}"}), 500
 
 
+@app.route("/api/exchange-rate", methods=["GET"])
+def get_exchange_rate():
+    """환율 데이터 조회 (USD/KRW)"""
+    try:
+        start_date = request.args.get("start_date", "2000-01-01")
+        end_date = request.args.get("end_date", datetime.now().strftime("%Y-%m-%d"))
+
+        # 날짜 파싱
+        start_dt = datetime.strptime(start_date, "%Y-%m-%d")
+        end_dt = datetime.strptime(end_date, "%Y-%m-%d")
+
+        # DB에서 기존 데이터 조회
+        existing_data = ExchangeRateCache.query.filter(
+            ExchangeRateCache.date >= start_date, ExchangeRateCache.date <= end_date
+        ).all()
+
+        # 날짜별 데이터를 딕셔너리로 변환
+        existing_dict = {data.date: data for data in existing_data}
+
+        # DB에 데이터가 없거나 최근 데이터가 없는 경우만 다운로드
+        need_download = False
+        if not existing_data:
+            print("📥 DB에 환율 데이터가 없습니다. 전체 다운로드를 시작합니다...")
+            need_download = True
+        else:
+            # 가장 최근 날짜 확인
+            latest_date = max(data.date for data in existing_data)
+            latest_dt = datetime.strptime(latest_date, "%Y-%m-%d")
+            today = datetime.now().date()
+
+            # 오늘 날짜보다 이전이면 업데이트 (주말 제외 자동 처리)
+            if latest_dt.date() < today:
+                print(
+                    f"📥 최근 환율 데이터 업데이트 중... (마지막 날짜: {latest_date})"
+                )
+                need_download = True
+                start_date = latest_date  # 마지막 날짜부터만 다운로드
+
+        # 필요한 경우만 Yahoo Finance에서 가져오기
+        if need_download:
+            # Yahoo Finance에서 USD/KRW 데이터 가져오기
+            ticker = yf.Ticker("KRW=X")
+
+            hist = ticker.history(start=start_date, end=end_date, interval="1d")
+
+            if not hist.empty:
+                new_count = 0
+                # 데이터를 DB에 저장
+                for date_idx, row in hist.iterrows():
+                    date_str = date_idx.strftime("%Y-%m-%d")
+
+                    # 이미 존재하는지 확인
+                    if date_str not in existing_dict:
+                        exchange_rate = ExchangeRateCache(
+                            date=date_str,
+                            open=(
+                                float(row["Open"])
+                                if not pd.isna(row["Open"])
+                                else float(row["Close"])
+                            ),
+                            high=(
+                                float(row["High"])
+                                if not pd.isna(row["High"])
+                                else float(row["Close"])
+                            ),
+                            low=(
+                                float(row["Low"])
+                                if not pd.isna(row["Low"])
+                                else float(row["Close"])
+                            ),
+                            close=float(row["Close"]),
+                            volume=(
+                                float(row["Volume"])
+                                if not pd.isna(row["Volume"])
+                                else 0
+                            ),
+                        )
+                        db.session.add(exchange_rate)
+                        existing_dict[date_str] = exchange_rate
+                        new_count += 1
+
+                db.session.commit()
+                print(
+                    f"✅ 환율 데이터 {new_count}일 분량 저장 완료 (전체: {len(existing_dict)}일)"
+                )
+            else:
+                print("⚠️ Yahoo Finance에서 데이터를 가져올 수 없습니다.")
+
+        # 요청된 날짜 범위의 데이터 반환
+        result = []
+        for date_str, data in existing_dict.items():
+            result.append(
+                {
+                    "date": data.date,
+                    "open": data.open,
+                    "high": data.high,
+                    "low": data.low,
+                    "close": data.close,
+                    "volume": data.volume,
+                }
+            )
+
+        # 날짜순 정렬
+        result.sort(key=lambda x: x["date"])
+
+        return jsonify({"success": True, "data": result, "count": len(result)})
+
+    except Exception as e:
+        error_trace = traceback.format_exc()
+        print("=" * 80)
+        print("❌ ERROR in /api/exchange-rate endpoint:")
+        print(error_trace)
+        print("=" * 80)
+        return jsonify({"error": f"환율 데이터 조회 중 오류: {str(e)}"}), 500
+
+
+@app.route("/api/exchange-rate/indicators", methods=["GET"])
+def get_exchange_rate_indicators():
+    """환율 기술적 지표 계산"""
+    try:
+        from ta.trend import SMAIndicator, IchimokuIndicator, MACD
+        from ta.volatility import BollingerBands
+        from ta.momentum import ROCIndicator
+
+        start_date = request.args.get("start_date", "2000-01-01")
+        end_date = request.args.get("end_date", datetime.now().strftime("%Y-%m-%d"))
+
+        # 전체 데이터 조회 (지표 계산을 위해)
+        all_data = (
+            ExchangeRateCache.query.filter(
+                ExchangeRateCache.date >= start_date, ExchangeRateCache.date <= end_date
+            )
+            .order_by(ExchangeRateCache.date)
+            .all()
+        )
+
+        if not all_data:
+            return jsonify({"success": False, "error": "데이터가 없습니다"}), 404
+
+        # DataFrame 생성
+        df = pd.DataFrame(
+            [
+                {
+                    "date": d.date,
+                    "open": d.open,
+                    "high": d.high,
+                    "low": d.low,
+                    "close": d.close,
+                    "volume": d.volume,
+                }
+                for d in all_data
+            ]
+        )
+
+        df["date"] = pd.to_datetime(df["date"])
+        df.set_index("date", inplace=True)
+
+        # 기술적 지표 계산
+        indicators = {}
+
+        # 이동평균선
+        indicators["ma5"] = (
+            SMAIndicator(close=df["close"], window=5).sma_indicator().bfill().tolist()
+        )
+        indicators["ma10"] = (
+            SMAIndicator(close=df["close"], window=10).sma_indicator().bfill().tolist()
+        )
+        indicators["ma20"] = (
+            SMAIndicator(close=df["close"], window=20).sma_indicator().bfill().tolist()
+        )
+        indicators["ma50"] = (
+            SMAIndicator(close=df["close"], window=50).sma_indicator().bfill().tolist()
+        )
+        indicators["ma120"] = (
+            SMAIndicator(close=df["close"], window=120).sma_indicator().bfill().tolist()
+        )
+        indicators["ma200"] = (
+            SMAIndicator(close=df["close"], window=200).sma_indicator().bfill().tolist()
+        )
+
+        # 볼린저 밴드
+        bb = BollingerBands(close=df["close"], window=20, window_dev=2)
+        indicators["bollinger"] = {
+            "upper": bb.bollinger_hband().bfill().tolist(),
+            "middle": bb.bollinger_mavg().bfill().tolist(),
+            "lower": bb.bollinger_lband().bfill().tolist(),
+        }
+
+        # 일목균형표 - 수동 계산 (선행/후행 스팬 처리)
+        def calculate_ichimoku_manual(high, low, close):
+            # 전환선 (9일)
+            tenkan_period = 9
+            tenkan = []
+            for i in range(len(high)):
+                if i < tenkan_period - 1:
+                    tenkan.append(None)
+                else:
+                    period_high = high[i - tenkan_period + 1 : i + 1].max()
+                    period_low = low[i - tenkan_period + 1 : i + 1].min()
+                    tenkan.append((period_high + period_low) / 2)
+
+            # 기준선 (26일)
+            kijun_period = 26
+            kijun = []
+            for i in range(len(high)):
+                if i < kijun_period - 1:
+                    kijun.append(None)
+                else:
+                    period_high = high[i - kijun_period + 1 : i + 1].max()
+                    period_low = low[i - kijun_period + 1 : i + 1].min()
+                    kijun.append((period_high + period_low) / 2)
+
+            # 선행스팬A: (전환선 + 기준선) / 2, 26일 선행
+            senkou_a = []
+            for i in range(len(high)):
+                if tenkan[i] is not None and kijun[i] is not None:
+                    senkou_a.append((tenkan[i] + kijun[i]) / 2)
+                else:
+                    senkou_a.append(None)
+            # 26일 선행 (미래로 이동)
+            senkou_a = [None] * 26 + senkou_a
+
+            # 선행스팬B: (52일 최고가 + 최저가) / 2, 26일 선행
+            senkou_b_period = 52
+            senkou_b = []
+            for i in range(len(high)):
+                if i < senkou_b_period - 1:
+                    senkou_b.append(None)
+                else:
+                    period_high = high[i - senkou_b_period + 1 : i + 1].max()
+                    period_low = low[i - senkou_b_period + 1 : i + 1].min()
+                    senkou_b.append((period_high + period_low) / 2)
+            # 26일 선행 (미래로 이동)
+            senkou_b = [None] * 26 + senkou_b
+
+            # 후행스팬: 현재 종가, 26일 후행 (과거로 이동)
+            chikou = close.tolist()[26:] + [None] * 26
+
+            return {
+                "tenkan": tenkan,
+                "kijun": kijun,
+                "senkou_a": senkou_a[: len(high) + 26],  # 미래 26일 포함
+                "senkou_b": senkou_b[: len(high) + 26],  # 미래 26일 포함
+                "chikou": chikou,
+                "future_dates": 26,  # 미래 날짜 개수
+            }
+
+        ichimoku_data = calculate_ichimoku_manual(df["high"], df["low"], df["close"])
+
+        # 미래 날짜 생성 (26일)
+        last_date = df.index[-1]
+        future_dates = pd.date_range(
+            start=last_date + pd.Timedelta(days=1), periods=26, freq="D"
+        )
+        all_dates = df.index.tolist() + future_dates.tolist()
+
+        indicators["ichimoku"] = {
+            "tenkan": ichimoku_data["tenkan"],
+            "kijun": ichimoku_data["kijun"],
+            "senkou_a": ichimoku_data["senkou_a"],
+            "senkou_b": ichimoku_data["senkou_b"],
+            "chikou": ichimoku_data["chikou"],
+        }
+
+        # MACD
+        macd = MACD(close=df["close"], window_slow=26, window_fast=12, window_sign=9)
+        indicators["macd"] = {
+            "macd": macd.macd().fillna(0).tolist(),
+            "signal": macd.macd_signal().fillna(0).tolist(),
+            "histogram": macd.macd_diff().fillna(0).tolist(),
+        }
+
+        # 모멘텀 (ROC - Rate of Change)
+        roc = ROCIndicator(close=df["close"], window=10)
+        indicators["momentum"] = roc.roc().fillna(0).tolist()
+
+        # 날짜 리스트 (미래 26일 포함 - 일목균형표용)
+        dates = [d.strftime("%Y-%m-%d") for d in all_dates]
+
+        return jsonify({"success": True, "dates": dates, "indicators": indicators})
+
+    except Exception as e:
+        error_trace = traceback.format_exc()
+        print("=" * 80)
+        print("❌ ERROR in /api/exchange-rate/indicators endpoint:")
+        print(error_trace)
+        print("=" * 80)
+        return jsonify({"error": f"지표 계산 중 오류: {str(e)}"}), 500
+
+
 @app.route("/ranking")
 def ranking():
     """랭킹 페이지"""
-    return render_template("ranking.html")
+    return render_template("ranking.html", active_page="ranking")
+
+
+@app.route("/exchange-rate")
+def exchange_rate():
+    """환율 페이지"""
+    return render_template("exchange_rate.html", active_page="exchange-rate")
 
 
 @app.route("/login")
@@ -1459,13 +2341,13 @@ def login():
     # 이미 로그인된 경우 메인 페이지로 리다이렉트
     if "user_id" in session:
         return redirect("/")
-    return render_template("login.html")
+    return render_template("login.html", active_page="login")
 
 
 @app.route("/signup")
 def signup():
     """회원가입 페이지"""
-    return render_template("signup.html")
+    return render_template("signup.html", active_page="signup")
 
 
 @app.route("/mypage")
@@ -1474,7 +2356,12 @@ def mypage():
     # 로그인 확인
     if "user_id" not in session:
         return redirect("/login")
-    return render_template("mypage.html")
+
+    # 사용자 정보 조회
+    user = User.query.filter_by(id=session["user_id"]).first()
+    is_admin = user.is_admin if user else False
+
+    return render_template("mypage.html", active_page="mypage", is_admin=is_admin)
 
 
 @app.route("/admin-login", methods=["GET", "POST"])
@@ -1483,18 +2370,22 @@ def admin_login():
     if request.method == "POST":
         password = request.form.get("password")
         admin_password = os.getenv("ADMIN_PW")
-        
+
         if not admin_password:
-            return render_template("admin_login.html", error="관리자 비밀번호가 설정되지 않았습니다.")
-        
+            return render_template(
+                "admin_login.html", error="관리자 비밀번호가 설정되지 않았습니다."
+            )
+
         if password == admin_password:
             session["admin_authenticated"] = True
             session.permanent = True  # 세션 유지
             next_url = request.args.get("next", "/admin")
             return redirect(next_url)
         else:
-            return render_template("admin_login.html", error="비밀번호가 올바르지 않습니다.")
-    
+            return render_template(
+                "admin_login.html", error="비밀번호가 올바르지 않습니다."
+            )
+
     return render_template("admin_login.html")
 
 
@@ -2238,6 +3129,90 @@ def view_portfolio(portfolio_id):
         return f"포트폴리오를 불러올 수 없습니다: {str(e)}", 500
 
 
+@app.route("/parse-csv", methods=["POST"])
+def parse_csv():
+    """CSV 파일을 파싱하여 포트폴리오 데이터 반환"""
+    try:
+        # CSV 파일 읽기
+        if "csv_file" not in request.files:
+            return jsonify({"error": "CSV 파일이 업로드되지 않았습니다."}), 400
+
+        file = request.files["csv_file"]
+
+        if file.filename == "":
+            return jsonify({"error": "파일이 선택되지 않았습니다."}), 400
+
+        app.logger.info(f"📁 Parsing CSV file: {file.filename}")
+
+        # CSV 파일 파싱
+        csv_content = file.read().decode("utf-8")
+        portfolio_df = pd.read_csv(io.StringIO(csv_content))
+
+        # 필수 컬럼 확인
+        required_columns = ["티커", "보유량", "국가"]
+        missing_columns = [
+            col for col in required_columns if col not in portfolio_df.columns
+        ]
+
+        if missing_columns:
+            return (
+                jsonify(
+                    {
+                        "error": f'CSV 파일에 다음 컬럼이 필요합니다: {", ".join(missing_columns)}'
+                    }
+                ),
+                400,
+            )
+
+        # 데이터 변환
+        portfolio_data = []
+        for _, row in portfolio_df.iterrows():
+            ticker = row["티커"]
+            quantity = row["보유량"]
+            country = row["국가"]
+            classification = row.get("분류", "")
+
+            # 분류가 "현금"인 경우 별도 처리
+            if classification == "현금":
+                continue
+
+            portfolio_data.append(
+                {
+                    "ticker": ticker,
+                    "quantity": float(quantity),
+                    "country": country,
+                }
+            )
+
+        # 현금 데이터 추출
+        cash_data = {"KRW": 0, "USD": 0}
+        cash_rows = portfolio_df[portfolio_df.get("분류", "") == "현금"]
+        for _, row in cash_rows.iterrows():
+            country = row["국가"]
+            amount = float(row["보유량"])
+            if country == "한국":
+                cash_data["KRW"] += amount
+            elif country == "미국":
+                cash_data["USD"] += amount
+
+        app.logger.info(
+            f"✅ CSV parsed: {len(portfolio_data)} stocks, KRW: {cash_data['KRW']}, USD: {cash_data['USD']}"
+        )
+
+        return jsonify(
+            {
+                "success": True,
+                "portfolio": portfolio_data,
+                "cash": cash_data,
+            }
+        )
+
+    except Exception as e:
+        app.logger.error(f"❌ Error parsing CSV: {str(e)}")
+        app.logger.error(traceback.format_exc())
+        return jsonify({"error": f"CSV 파일 파싱 오류: {str(e)}"}), 400
+
+
 @app.route("/analyze", methods=["POST"])
 def analyze():
     """포트폴리오 분석"""
@@ -2288,10 +3263,29 @@ def analyze():
         # 날짜 변환
         start_date_obj = datetime.strptime(start_date, "%Y-%m-%d")
 
-        # 포트폴리오 수익률 계산 (기준 통화 전달)
-        result = calculate_portfolio_returns(
-            portfolio_df, start_date_obj, base_currency
-        )
+        # DCA 데이터 처리
+        dca_data = None
+        dca_data_json = request.form.get("dca_data")
+        if dca_data_json:
+            try:
+                dca_data = json.loads(dca_data_json)
+                app.logger.info(f"📈 Received DCA data: {dca_data}")
+            except json.JSONDecodeError as e:
+                app.logger.error(f"❌ Error parsing DCA data: {e}")
+                dca_data = None
+
+        # 포트폴리오 수익률 계산
+        # DCA가 있으면 시뮬레이션 함수 사용, 없으면 일반 함수 사용
+        if dca_data and len(dca_data) > 0:
+            app.logger.info("📈 Using DCA simulation mode")
+            result = calculate_portfolio_returns_with_dca(
+                portfolio_df, dca_data, start_date_obj, base_currency
+            )
+        else:
+            app.logger.info("📊 Using standard portfolio calculation")
+            result = calculate_portfolio_returns(
+                portfolio_df, start_date_obj, base_currency
+            )
 
         if result is None or result[0] is None:
 
@@ -2315,6 +3309,7 @@ def analyze():
             cash_holdings,
             total_initial_value_with_cash,
             failed_tickers,  # 실패한 티커 리스트 받기
+            has_dca,  # DCA 사용 여부
         ) = result
 
         # 일부 티커가 실패한 경우 경고 메시지 추가
@@ -2344,24 +3339,35 @@ def analyze():
                 )
         else:
             # 일반 티커 벤치마크
+            app.logger.info(f"📊 Fetching benchmark ticker: {benchmark_ticker}")
             benchmark_data = fetch_stock_data(
                 benchmark_ticker, start_date_obj, datetime.now()
             )
 
             if benchmark_data is None:
-                app.logger.warning(
+                app.logger.error(
                     f"❌ Failed to fetch benchmark data for {benchmark_ticker}"
                 )
                 return (
                     jsonify(
                         {
-                            "error": f'벤치마크 티커 "{benchmark_ticker}"의 데이터를 가져올 수 없습니다. 티커 이름을 확인하세요.'
+                            "error": f'벤치마크 티커 "{benchmark_ticker}"의 데이터를 가져올 수 없습니다.\n'
+                            f"가능한 원인:\n"
+                            f"1) 티커 심볼이 잘못되었습니다 (예: VOO, SPY, QQQ 등 확인)\n"
+                            f"2) Yahoo Finance API 일시적 오류 (잠시 후 다시 시도)\n"
+                            f"3) 네트워크 연결 문제\n"
+                            f"4) 해당 종목이 상장폐지되었을 수 있습니다"
                         }
                     ),
-                    400,
+                    500,
                 )
 
+            app.logger.info(
+                f"✅ Benchmark data fetched: {len(benchmark_data)} data points"
+            )
+
             # 벤치마크 데이터도 fill_missing_dates 호출
+            app.logger.info(f"🔄 Filling missing dates for benchmark...")
             benchmark_data = fill_missing_dates(
                 benchmark_data, start_date_obj, datetime.now()
             )
@@ -2412,7 +3418,17 @@ def analyze():
 
         # 포트폴리오 요약 정보
         current_value = portfolio_series.iloc[-1]
-        initial_value = portfolio_series.iloc[0]
+
+        # DCA가 있는 경우 초기값은 첫날 가치가 아니라 첫 투자 금액 사용
+        if has_dca:
+            # 첫 투자 시점의 투자 금액이 초기값
+            # total_initial_value_with_cash - 현금 = 투자 자산 초기값
+            initial_value = total_initial_value_with_cash - sum(
+                cash["value"] for cash in cash_holdings.values()
+            )
+        else:
+            # 일반 포트폴리오는 첫날 가치
+            initial_value = portfolio_series.iloc[0]
 
         # 현금 총액 계산
         total_cash = sum(cash["value"] for cash in cash_holdings.values())
@@ -2427,18 +3443,52 @@ def analyze():
             "initial_value_with_cash": round(initial_value_with_cash, 2),
             "current_value_with_cash": round(current_value_with_cash, 2),
             "total_cash": round(total_cash, 2),
-            "total_return": round((current_value / initial_value - 1) * 100, 2),
-            "total_return_with_cash": round(
-                (current_value_with_cash / initial_value_with_cash - 1) * 100, 2
+            "total_return": (
+                round((current_value / initial_value - 1) * 100, 2)
+                if initial_value > 0
+                else 0
+            ),
+            "total_return_with_cash": (
+                round((current_value_with_cash / initial_value_with_cash - 1) * 100, 2)
+                if initial_value_with_cash > 0
+                else 0
             ),
             "start_date": start_date,
             "end_date": datetime.now().strftime("%Y-%m-%d"),
             "benchmark": benchmark_ticker,
             "benchmark_name": benchmark_name,  # 표시용 벤치마크 이름 추가
-            "num_holdings": len(portfolio_df),
+            "num_holdings": len(portfolio_data),
             "base_currency": base_currency,
             "exchange_rate": round(exchange_rate, 2),
         }
+
+        # 최종 포트폴리오를 CSV 형식으로 변환 (DCA 적용 후의 실제 보유량)
+        final_portfolio_rows = []
+        for ticker, data in portfolio_data.items():
+            final_portfolio_rows.append(
+                {
+                    "티커": ticker,
+                    "종목명": data.get("name", ""),
+                    "보유량": data["quantity"],
+                    "국가": data.get("country", "미국"),
+                    "분류": "주식",
+                }
+            )
+
+        # 현금 추가
+        for ticker, cash_data in cash_holdings.items():
+            final_portfolio_rows.append(
+                {
+                    "티커": ticker,
+                    "종목명": f"현금 ({cash_data['country']})",
+                    "보유량": cash_data["value"],
+                    "국가": cash_data["country"],
+                    "분류": "현금",
+                }
+            )
+
+        final_portfolio_df = pd.DataFrame(final_portfolio_rows)
+        final_portfolio_csv = final_portfolio_df.to_csv(index=False)
 
         return jsonify(
             {
@@ -2448,6 +3498,7 @@ def analyze():
                 "allocation_data": allocation_data,
                 "holdings_table": holdings_table,
                 "warning": warning_msg,  # 경고 메시지 추가
+                "final_portfolio_csv": final_portfolio_csv,  # 최종 포트폴리오 CSV 추가
             }
         )
 
@@ -2481,25 +3532,23 @@ def ai_analysis():
         import json
         from datetime import datetime, timedelta
 
-        # 클라이언트 IP 가져오기
-        client_ip = request.headers.get("X-Forwarded-For", request.remote_addr)
-        if "," in client_ip:
-            client_ip = client_ip.split(",")[0].strip()
+        # 세션에서 user_id 가져오기 (user_id 기반 rate limiting)
+        user_id = session.get("user_id")
 
         current_time = datetime.now()
 
-        # Rate limiting 체크 (3분에 1번)
-        if client_ip in ai_analysis_rate_limit:
-            last_request = ai_analysis_rate_limit[client_ip]
+        # Rate limiting 체크 (1분에 1번) - user_id 기반
+        if user_id in ai_analysis_rate_limit:
+            last_request = ai_analysis_rate_limit[user_id]
             time_diff = (current_time - last_request).total_seconds()
 
-            if time_diff < 180:
-                remaining_seconds = int(180 - time_diff)
+            if time_diff < 60:  # 60초 = 1분
+                remaining_seconds = int(60 - time_diff)
                 return (
                     jsonify(
                         {
                             "success": False,
-                            "error": f"AI 분석은 3분에 1번만 가능합니다. {remaining_seconds}초 후에 다시 시도해주세요.",
+                            "error": f"AI 분석은 1분에 1번만 가능합니다. {remaining_seconds}초 후에 다시 시도해주세요.",
                             "rate_limited": True,
                             "remaining_seconds": remaining_seconds,
                         }
@@ -2526,11 +3575,13 @@ def ai_analysis():
             sort_keys=True,
         )
 
-        # 캐시에서 확인 (같은 포트폴리오는 재분석하지 않음)
-        if client_ip in ai_analysis_cache:
-            cached_data = ai_analysis_cache[client_ip]
+        # 캐시에서 확인 (같은 포트폴리오는 재분석하지 않음) - user_id 기반
+        if user_id in ai_analysis_cache:
+            cached_data = ai_analysis_cache[user_id]
             if cached_data.get("cache_key") == cache_key:
-                app.logger.info(f"✅ Returning cached AI analysis for IP: {client_ip}")
+                app.logger.info(
+                    f"✅ Returning cached AI analysis for user_id: {user_id}"
+                )
                 return jsonify(
                     {"success": True, "analysis": cached_data["result"], "cached": True}
                 )
@@ -2618,11 +3669,11 @@ def ai_analysis():
 
         app.logger.info("✅ OpenAI API call successful")
 
-        # Rate limit 업데이트
-        ai_analysis_rate_limit[client_ip] = current_time
+        # Rate limit 업데이트 (user_id 기반)
+        ai_analysis_rate_limit[user_id] = current_time
 
-        # 캐시 저장
-        ai_analysis_cache[client_ip] = {
+        # 캐시 저장 (user_id 기반)
+        ai_analysis_cache[user_id] = {
             "cache_key": cache_key,
             "result": analysis_result,
             "timestamp": current_time,

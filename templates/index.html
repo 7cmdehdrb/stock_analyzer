@@ -506,6 +506,7 @@
                 <div class="navbar-links">
                     <a href="/" class="navbar-link active">분석하기</a>
                     <a href="/ranking" class="navbar-link">랭킹보기</a>
+                    <a href="/exchange-rate" class="navbar-link">환율</a>
                     <a href="/login" class="navbar-link" id="authLink">로그인</a>
                 </div>
             </div>
@@ -516,55 +517,92 @@
                 <!-- 입력 모드 선택 -->
                 <div class="input-mode-toggle">
                     <button type="button" class="mode-btn active" id="manualModeBtn">✏️ 직접 입력</button>
-                    <button type="button" class="mode-btn" id="csvModeBtn">📁 CSV 업로드</button>
+                    <button type="button" class="mode-btn" id="csvModeBtn">📁 CSV 불러오기</button>
                 </div>
 
                 <!-- CSV 업로드 모드 -->
                 <div id="csvUploadSection" class="form-group" style="display: none;">
-                    <label for="csvFile">포트폴리오 CSV 파일 업로드</label>
+                    <label for="csvFile">포트폴리오 CSV 파일 불러오기</label>
                     <input type="file" id="csvFile" name="csv_file" accept=".csv">
                     <div class="helper-text">
-                        CSV 파일은 반드시 "티커", "보유량", "국가", "분류" 컬럼을 포함해야 합니다.
+                        CSV 파일을 선택하면 자동으로 아래 입력 폼이 채워집니다. CSV 파일은 "티커", "보유량", "국가" 컬럼을 포함해야 합니다.
                     </div>
                 </div>
 
                 <!-- 수동 입력 모드 -->
                 <div id="manualInputSection">
                     <label>포트폴리오 종목 입력</label>
-                    <div class="helper-text" style="margin-top: 5px; margin-bottom: 10px;">
-                        💡 현금 체크박스를 선택하면 해당 종목이 현금으로 처리되며, 티커는 자동으로 USD 또는 KRW로 설정됩니다.
-                    </div>
                     <div class="input-table-container">
                         <table class="input-table">
                             <thead>
                                 <tr>
-                                    <th style="width: 25%;">티커</th>
-                                    <th style="width: 20%;">보유량</th>
+                                    <th style="width: 30%;">티커</th>
+                                    <th style="width: 25%;">보유수량</th>
                                     <th style="width: 20%;">국가</th>
-                                    <th style="width: 15%;">현금</th>
-                                    <th style="width: 20%;">삭제</th>
+                                    <th style="width: 25%;">삭제</th>
                                 </tr>
                             </thead>
                             <tbody id="manualInputTableBody">
                                 <!-- 초기 행 -->
                                 <tr class="input-row">
                                     <td><input type="text" class="ticker-input" placeholder="예: AAPL"></td>
-                                    <td><input type="number" class="quantity-input" placeholder="0" min="0" step="1"></td>
+                                    <td><input type="number" class="quantity-input" placeholder="보유 주식 수 (예: 10)" min="0" step="1"></td>
                                     <td>
-                                        <select class="country-input" onchange="updateQuantityStep(this)">
+                                        <select class="country-input">
                                             <option value="미국">미국</option>
                                             <option value="한국">한국</option>
                                         </select>
                                     </td>
-                                    <td style="text-align: center;"><input type="checkbox" class="cash-input" onchange="handleCashChangeWithStep(this)"></td>
                                     <td><button type="button" class="delete-row-btn" onclick="deleteRow(this)">삭제</button></td>
                                 </tr>
                             </tbody>
                         </table>
-                        <button type="button" class="add-row-btn" onclick="addRow()">
-                            <span>➕</span>
-                            <span>종목 추가</span>
-                        </button>
+                        <div style="display: flex; gap: 10px;">
+                            <button type="button" class="add-row-btn" onclick="addRow()" style="flex: 1;">
+                                <span>➕</span>
+                                <span>종목 추가</span>
+                            </button>
+                            <button type="button" class="add-row-btn" onclick="addDcaRow()" style="flex: 1; background: #28a745;">
+                                <span>📈</span>
+                                <span>적립식 투자 추가</span>
+                            </button>
+                        </div>
+                        
+                        <!-- 적립식 투자 섹션 -->
+                        <div id="dcaSection" style="margin-top: 20px; padding: 15px; background: #f0f8ff; border-radius: 8px; border: 1px solid #b0d4f1; display: none;">
+                            <h4 style="margin: 0 0 15px 0; color: #0066cc; font-size: 14px; font-weight: 600;">📈 적립식 투자 (Dollar Cost Averaging)</h4>
+                            <table class="input-table">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 25%;">티커</th>
+                                        <th style="width: 20%;">1주기당 추가수량</th>
+                                        <th style="width: 15%;">국가</th>
+                                        <th style="width: 20%;">주기</th>
+                                        <th style="width: 20%;">삭제</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="dcaInputTableBody">
+                                    <!-- DCA 행들이 여기에 추가됨 -->
+                                </tbody>
+                            </table>
+                        </div>
+                        
+                        <!-- 현금 입력 섹션 -->
+                        <div style="margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px; border: 1px solid #e0e0e0;">
+                            <h4 style="margin: 0 0 15px 0; color: #333; font-size: 14px; font-weight: 600;">💰 현금 보유액</h4>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                                <div>
+                                    <label style="display: block; margin-bottom: 5px; color: #666; font-size: 13px;">원화 (KRW)</label>
+                                    <input type="number" id="cashKRW" placeholder="원화 금액 (예: 1000000)" min="0" step="1" value="0" 
+                                           style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; box-sizing: border-box;">
+                                </div>
+                                <div>
+                                    <label style="display: block; margin-bottom: 5px; color: #666; font-size: 13px;">달러 (USD)</label>
+                                    <input type="number" id="cashUSD" placeholder="달러 금액 (예: 1000.50)" min="0" step="0.01" value="0" 
+                                           style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; box-sizing: border-box;">
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -658,7 +696,7 @@
                             <tr style="background: #f5f5f5;">
                                 <th class="sortable-header" onclick="sortHoldings('ticker')" style="padding: 12px; text-align: left; border-bottom: 2px solid #667eea;">티커</th>
                                 <th style="padding: 12px; text-align: left; border-bottom: 2px solid #667eea;">종목명</th>
-                                <th style="padding: 12px; text-align: right; border-bottom: 2px solid #667eea;">보유량</th>
+                                <th style="padding: 12px; text-align: right; border-bottom: 2px solid #667eea;">보유수량</th>
                                 <th style="padding: 12px; text-align: right; border-bottom: 2px solid #667eea;">평가액</th>
                                 <th class="sortable-header" onclick="sortHoldings('weight')" style="padding: 12px; text-align: right; border-bottom: 2px solid #667eea;">비중(%)</th>
                             </tr>
@@ -765,88 +803,40 @@
             </div>
 
             <!-- AI 분석 결과 모달 -->
-            <div id="aiAnalysisModal" style="
-                display: none;
-                position: fixed;
-                top: 0;
-                left: 0;
-                width: 100%;
-                height: 100%;
-                background: rgba(0, 0, 0, 0.7);
-                z-index: 9999;
-                overflow-y: auto;
-            ">
-                <div style="
-                    max-width: 900px;
-                    margin: 50px auto;
-                    background: white;
-                    border-radius: 12px;
-                    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-                    position: relative;
-                ">
+            <div id="aiAnalysisModal" class="ai-modal">
+                <div class="ai-modal-container">
                     <!-- 모달 헤더 -->
-                    <div style="
-                        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                        padding: 25px 30px;
-                        border-radius: 12px 12px 0 0;
-                        display: flex;
-                        justify-content: space-between;
-                        align-items: center;
-                    ">
-                        <h2 style="margin: 0; color: white; font-size: 24px; display: flex; align-items: center; gap: 10px;">
-                            <span style="font-size: 28px;">🤖</span>
-                            <span>AI 포트폴리오 분석</span>
+                    <div class="ai-modal-header">
+                        <h2 class="ai-modal-title">
+                            <span class="ai-icon">🤖</span>
+                            <span class="ai-title-text">AI 포트폴리오 분석</span>
                         </h2>
-                        <button onclick="closeAIModal()" style="
-                            background: none;
-                            border: none;
-                            color: white;
-                            font-size: 28px;
-                            cursor: pointer;
-                            width: 36px;
-                            height: 36px;
-                            display: flex;
-                            align-items: center;
-                            justify-content: center;
-                            border-radius: 50%;
-                            transition: background 0.2s;
-                        " onmouseover="this.style.background='rgba(255,255,255,0.2)'" onmouseout="this.style.background='none'">
+                        <button onclick="closeAIModal()" class="ai-modal-close" 
+                            onmouseover="this.style.background='rgba(255,255,255,0.2)'" 
+                            onmouseout="this.style.background='none'">
                             ×
                         </button>
                     </div>
                     
                     <!-- 로딩 상태 -->
-                    <div id="aiLoadingState" style="padding: 60px; text-align: center; display: none;">
-                        <div style="font-size: 48px; margin-bottom: 20px;">🤖</div>
-                        <div style="font-size: 18px; color: #667eea; font-weight: 600; margin-bottom: 10px;">
+                    <div id="aiLoadingState" class="ai-loading">
+                        <div class="ai-loading-icon">🤖</div>
+                        <div class="ai-loading-title">
                             AI가 포트폴리오를 분석하고 있습니다...
                         </div>
-                        <div style="font-size: 14px; color: #999; margin-bottom: 20px;">
+                        <div class="ai-loading-subtitle">
                             잠시만 기다려주세요
                         </div>
-                        <div style="font-size: 13px; color: #ef4444; background: #fee; padding: 12px; border-radius: 6px; margin: 0 auto 30px; max-width: 400px; border: 1px solid #fcc;">
+                        <div class="ai-loading-warning">
                             ⚠️ <strong>주의:</strong> 분석이 완료될 때까지 창을 닫거나 화면을 벗어나지 마세요.
                         </div>
-                        <div style="margin-top: 30px;">
-                            <div style="
-                                display: inline-block;
-                                width: 50px;
-                                height: 50px;
-                                border: 5px solid #f3f3f3;
-                                border-top: 5px solid #667eea;
-                                border-radius: 50%;
-                                animation: spin 1s linear infinite;
-                            "></div>
+                        <div class="ai-loading-spinner-wrapper">
+                            <div class="ai-loading-spinner"></div>
                         </div>
                     </div>
                     
                     <!-- 분석 결과 -->
-                    <div id="aiAnalysisContent" style="
-                        padding: 30px;
-                        max-height: 70vh;
-                        overflow-y: auto;
-                        line-height: 1.8;
-                    "></div>
+                    <div id="aiAnalysisContent" class="ai-content"></div>
                 </div>
             </div>
         </div>
@@ -858,14 +848,136 @@
             100% { transform: rotate(360deg); }
         }
         
+        /* AI 모달 기본 스타일 */
+        .ai-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 9999;
+            overflow-y: auto;
+            padding: 20px;
+        }
+        
+        .ai-modal-container {
+            max-width: 900px;
+            margin: 30px auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            position: relative;
+        }
+        
+        .ai-modal-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px 25px;
+            border-radius: 12px 12px 0 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .ai-modal-title {
+            margin: 0;
+            color: white;
+            font-size: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .ai-icon {
+            font-size: 24px;
+        }
+        
+        .ai-title-text {
+            font-size: 20px;
+        }
+        
+        .ai-modal-close {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 28px;
+            cursor: pointer;
+            width: 36px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            transition: background 0.2s;
+            flex-shrink: 0;
+        }
+        
+        .ai-loading {
+            padding: 40px 20px;
+            text-align: center;
+            display: none;
+        }
+        
+        .ai-loading-icon {
+            font-size: 48px;
+            margin-bottom: 20px;
+        }
+        
+        .ai-loading-title {
+            font-size: 18px;
+            color: #667eea;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+        
+        .ai-loading-subtitle {
+            font-size: 14px;
+            color: #999;
+            margin-bottom: 20px;
+        }
+        
+        .ai-loading-warning {
+            font-size: 13px;
+            color: #ef4444;
+            background: #fee;
+            padding: 12px;
+            border-radius: 6px;
+            margin: 0 auto 30px;
+            max-width: 400px;
+            border: 1px solid #fcc;
+        }
+        
+        .ai-loading-spinner-wrapper {
+            margin-top: 30px;
+        }
+        
+        .ai-loading-spinner {
+            display: inline-block;
+            width: 50px;
+            height: 50px;
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        .ai-content {
+            padding: 30px;
+            max-height: 70vh;
+            overflow-y: auto;
+            line-height: 1.8;
+        }
+        
         /* 마크다운 스타일링 */
         #aiAnalysisContent h2 {
             color: #333;
             margin-top: 30px;
             margin-bottom: 15px;
-            font-size: 22px;
+            font-size: 20px;
             padding-bottom: 10px;
             border-bottom: 2px solid #e0e0e0;
+            word-break: keep-all;
         }
         
         #aiAnalysisContent h2:first-child {
@@ -875,11 +987,13 @@
         #aiAnalysisContent ul {
             margin-left: 20px;
             margin-bottom: 20px;
+            padding-left: 0;
         }
         
         #aiAnalysisContent li {
             margin-bottom: 10px;
             color: #333;
+            word-break: keep-all;
         }
         
         #aiAnalysisContent strong {
@@ -890,6 +1004,7 @@
         #aiAnalysisContent p {
             margin-bottom: 15px;
             color: #555;
+            word-break: keep-all;
         }
         
         #aiAnalysisContent code {
@@ -898,6 +1013,202 @@
             border-radius: 3px;
             font-family: 'Courier New', monospace;
             color: #e83e8c;
+            font-size: 0.9em;
+            word-break: break-all;
+        }
+        
+        /* 테이블 스타일링 (AI 분석 결과에 포함될 수 있음) */
+        #aiAnalysisContent table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+            font-size: 14px;
+        }
+        
+        #aiAnalysisContent th,
+        #aiAnalysisContent td {
+            border: 1px solid #e0e0e0;
+            padding: 8px;
+            text-align: left;
+        }
+        
+        #aiAnalysisContent th {
+            background: #f5f5f5;
+            font-weight: 600;
+            color: #333;
+        }
+        
+        #aiAnalysisContent blockquote {
+            border-left: 4px solid #667eea;
+            margin: 15px 0;
+            padding: 10px 20px;
+            background: #f8f9ff;
+            color: #555;
+        }
+        
+        /* 모바일 반응형 스타일 */
+        @media (max-width: 768px) {
+            .ai-modal {
+                padding: 0;
+            }
+            
+            .ai-modal-container {
+                margin: 0;
+                border-radius: 0;
+                min-height: 100vh;
+                max-width: 100%;
+            }
+            
+            .ai-modal-header {
+                padding: 15px 20px;
+                border-radius: 0;
+                position: sticky;
+                top: 0;
+                z-index: 10;
+            }
+            
+            .ai-modal-title {
+                font-size: 16px;
+                gap: 8px;
+            }
+            
+            .ai-icon {
+                font-size: 20px;
+            }
+            
+            .ai-title-text {
+                font-size: 16px;
+            }
+            
+            .ai-modal-close {
+                font-size: 24px;
+                width: 32px;
+                height: 32px;
+            }
+            
+            .ai-loading {
+                padding: 30px 15px;
+            }
+            
+            .ai-loading-icon {
+                font-size: 36px;
+                margin-bottom: 15px;
+            }
+            
+            .ai-loading-title {
+                font-size: 16px;
+                margin-bottom: 8px;
+            }
+            
+            .ai-loading-subtitle {
+                font-size: 13px;
+                margin-bottom: 15px;
+            }
+            
+            .ai-loading-warning {
+                font-size: 12px;
+                padding: 10px;
+                margin: 0 15px 20px;
+                max-width: 100%;
+            }
+            
+            .ai-loading-spinner {
+                width: 40px;
+                height: 40px;
+                border-width: 4px;
+            }
+            
+            .ai-content {
+                padding: 20px 15px;
+                max-height: calc(100vh - 80px);
+            }
+            
+            #aiAnalysisContent h2 {
+                font-size: 18px;
+                margin-top: 20px;
+                margin-bottom: 12px;
+                padding-bottom: 8px;
+            }
+            
+            #aiAnalysisContent ul {
+                margin-left: 10px;
+                margin-bottom: 15px;
+                padding-left: 10px;
+            }
+            
+            #aiAnalysisContent li {
+                margin-bottom: 8px;
+                font-size: 14px;
+                line-height: 1.6;
+            }
+            
+            #aiAnalysisContent p {
+                margin-bottom: 12px;
+                font-size: 14px;
+                line-height: 1.6;
+            }
+            
+            #aiAnalysisContent code {
+                font-size: 0.85em;
+                padding: 1px 4px;
+            }
+            
+            #aiAnalysisContent table {
+                font-size: 12px;
+                display: block;
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+            }
+            
+            #aiAnalysisContent th,
+            #aiAnalysisContent td {
+                padding: 6px;
+                font-size: 12px;
+            }
+            
+            #aiAnalysisContent blockquote {
+                padding: 8px 15px;
+                margin: 10px 0;
+                font-size: 14px;
+            }
+        }
+        
+        /* 작은 모바일 (360px 이하) */
+        @media (max-width: 360px) {
+            .ai-modal-title {
+                font-size: 14px;
+            }
+            
+            .ai-icon {
+                font-size: 18px;
+            }
+            
+            .ai-title-text {
+                font-size: 14px;
+            }
+            
+            .ai-content {
+                padding: 15px 10px;
+            }
+            
+            #aiAnalysisContent h2 {
+                font-size: 16px;
+            }
+            
+            #aiAnalysisContent li,
+            #aiAnalysisContent p {
+                font-size: 13px;
+            }
+            
+            #aiAnalysisContent table {
+                font-size: 11px;
+            }
+            
+            #aiAnalysisContent th,
+            #aiAnalysisContent td {
+                padding: 4px;
+                font-size: 11px;
+            }
         }
     </style>
 
@@ -1055,33 +1366,114 @@
             switchInputMode('manual');
         });
 
-        // 입력 모드 전역 변수 (기본값: manual)
+        // CSV 파일 선택 시 자동 파싱
+        document.getElementById('csvFile').addEventListener('change', async function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            console.log('📁 CSV file selected:', file.name);
+            
+            // 로딩 표시
+            const csvSection = document.getElementById('csvUploadSection');
+            const helperText = csvSection.querySelector('.helper-text');
+            const originalHelperText = helperText.innerHTML;
+            helperText.innerHTML = '<span style="color: #667eea;">⏳ CSV 파일을 분석하는 중...</span>';
+
+            try {
+                const formData = new FormData();
+                formData.append('csv_file', file);
+
+                const response = await fetch('/parse-csv', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || 'CSV 파일 파싱 실패');
+                }
+
+                console.log('✅ CSV parsed successfully:', data);
+
+                // 수동 입력 모드로 전환
+                switchInputMode('manual');
+
+                // 기존 행 모두 삭제
+                const tbody = document.getElementById('manualInputTableBody');
+                tbody.innerHTML = '';
+
+                // CSV 데이터로 행 채우기
+                data.portfolio.forEach(item => {
+                    const newRow = document.createElement('tr');
+                    newRow.className = 'input-row';
+                    newRow.innerHTML = `
+                        <td><input type="text" class="ticker-input" placeholder="예: AAPL" value="${item.ticker}"></td>
+                        <td><input type="number" class="quantity-input" placeholder="보유 주식 수 (예: 10)" min="0" step="1" value="${item.quantity}"></td>
+                        <td>
+                            <select class="country-input">
+                                <option value="미국" ${item.country === '미국' ? 'selected' : ''}>미국</option>
+                                <option value="한국" ${item.country === '한국' ? 'selected' : ''}>한국</option>
+                            </select>
+                        </td>
+                        <td><button type="button" class="delete-row-btn" onclick="deleteRow(this)">삭제</button></td>
+                    `;
+                    tbody.appendChild(newRow);
+                });
+
+                // 최소 1개 행 보장
+                if (tbody.children.length === 0) {
+                    addRow();
+                }
+
+                // 현금 데이터 채우기
+                if (data.cash) {
+                    document.getElementById('cashKRW').value = data.cash.KRW || 0;
+                    document.getElementById('cashUSD').value = data.cash.USD || 0;
+                }
+
+                // 성공 메시지
+                helperText.innerHTML = '<span style="color: #22c55e;">✅ CSV 파일이 성공적으로 불러와졌습니다!</span>';
+                setTimeout(() => {
+                    helperText.innerHTML = originalHelperText;
+                }, 3000);
+
+                // 파일 입력 초기화
+                e.target.value = '';
+
+            } catch (error) {
+                console.error('❌ Error parsing CSV:', error);
+                helperText.innerHTML = `<span style="color: #ef4444;">❌ ${error.message}</span>`;
+                setTimeout(() => {
+                    helperText.innerHTML = originalHelperText;
+                }, 5000);
+            }
+        });
+
+        // 입력 모드 전역 변수 (기본값: manual, 항상 manual 모드 사용)
         let currentInputMode = 'manual';
 
-        // 입력 모드 전환
+        // 입력 모드 전환 (CSV 모드는 파일 선택 트리거로만 사용)
         function switchInputMode(mode) {
             console.log('Switching to mode:', mode);
-            currentInputMode = mode;
-            const csvSection = document.getElementById('csvUploadSection');
-            const manualSection = document.getElementById('manualInputSection');
-            const csvFile = document.getElementById('csvFile');
-            const buttons = document.querySelectorAll('.mode-btn');
-
-            buttons.forEach(btn => btn.classList.remove('active'));
-
+            
             if (mode === 'csv') {
-                csvSection.style.display = 'block';
-                manualSection.style.display = 'none';
-                csvFile.required = true;
-                buttons[0].classList.add('active');
-                console.log('CSV mode activated');
+                // CSV 버튼 클릭 시 파일 선택 다이얼로그 열기
+                document.getElementById('csvFile').click();
+                // 항상 manual 모드 유지
+                currentInputMode = 'manual';
             } else {
-                csvSection.style.display = 'none';
-                manualSection.style.display = 'block';
-                csvFile.required = false;
-                buttons[1].classList.add('active');
-                console.log('Manual mode activated');
+                currentInputMode = 'manual';
             }
+            
+            // 항상 manual 섹션만 표시
+            document.getElementById('csvUploadSection').style.display = 'none';
+            document.getElementById('manualInputSection').style.display = 'block';
+            document.getElementById('csvFile').required = false;
+            
+            // 버튼 상태 업데이트
+            document.getElementById('manualModeBtn').classList.add('active');
+            document.getElementById('csvModeBtn').classList.remove('active');
         }
 
         // 행 추가
@@ -1091,14 +1483,13 @@
             newRow.className = 'input-row';
             newRow.innerHTML = `
                 <td><input type="text" class="ticker-input" placeholder="예: AAPL"></td>
-                <td><input type="number" class="quantity-input" placeholder="0" min="0" step="1"></td>
+                <td><input type="number" class="quantity-input" placeholder="보유 주식 수 (예: 10)" min="0" step="1"></td>
                 <td>
-                    <select class="country-input" onchange="updateQuantityStep(this)">
+                    <select class="country-input">
                         <option value="미국">미국</option>
                         <option value="한국">한국</option>
                     </select>
                 </td>
-                <td style="text-align: center;"><input type="checkbox" class="cash-input" onchange="handleCashChangeWithStep(this)"></td>
                 <td><button type="button" class="delete-row-btn" onclick="deleteRow(this)">삭제</button></td>
             `;
             tbody.appendChild(newRow);
@@ -1117,67 +1508,51 @@
             }
         }
 
-        // 보유량 입력 필드의 step 업데이트
-        function updateQuantityStep(selectOrCheckbox) {
-            const row = selectOrCheckbox.closest('tr');
-            const quantityInput = row.querySelector('.quantity-input');
-            const countrySelect = row.querySelector('.country-input');
-            const cashCheckbox = row.querySelector('.cash-input');
+        // 적립식 투자 행 추가
+        function addDcaRow() {
+            const dcaSection = document.getElementById('dcaSection');
+            const tbody = document.getElementById('dcaInputTableBody');
             
-            // 미국 + 현금인 경우에만 소수점 입력 허용
-            if (countrySelect.value === '미국' && cashCheckbox.checked) {
-                quantityInput.step = '0.01';
-            } else {
-                quantityInput.step = '1';
-            }
-        }
-
-        // 현금 체크박스 변경 처리 (step 업데이트 포함)
-        function handleCashChangeWithStep(checkbox) {
-            handleCashChange(checkbox);
-            updateQuantityStep(checkbox);
-        }
-
-        // 현금 체크박스 변경 처리
-        function handleCashChange(checkbox) {
-            const row = checkbox.closest('tr');
-            const tickerInput = row.querySelector('.ticker-input');
-            const countrySelect = row.querySelector('.country-input');
-
-            if (checkbox.checked) {
-                // 현금으로 체크된 경우
-                if (countrySelect.value === '미국') {
-                    tickerInput.value = 'USD';
-                } else {
-                    tickerInput.value = 'KRW';
-                }
-                tickerInput.readOnly = true;
-                tickerInput.style.background = '#f5f5f5';
-            } else {
-                // 현금 체크 해제된 경우
-                tickerInput.value = '';
-                tickerInput.readOnly = false;
-                tickerInput.style.background = 'white';
-            }
-        }
-
-        // 국가 선택 변경 처리 (현금인 경우에만)
-        function handleCountryChange(select) {
-            const row = select.closest('tr');
-            const cashCheckbox = row.querySelector('.cash-input');
-            const tickerInput = row.querySelector('.ticker-input');
-
-            if (cashCheckbox.checked) {
-                // 현금인 경우 티커 자동 변경
-                if (select.value === '미국') {
-                    tickerInput.value = 'USD';
-                } else {
-                    tickerInput.value = 'KRW';
-                }
+            // 섹션이 숨겨져 있으면 표시
+            if (dcaSection.style.display === 'none') {
+                dcaSection.style.display = 'block';
             }
             
-            // step도 업데이트
-            updateQuantityStep(select);
+            const newRow = document.createElement('tr');
+            newRow.className = 'dca-row';
+            newRow.innerHTML = `
+                <td><input type="text" class="dca-ticker-input" placeholder="예: AAPL"></td>
+                <td><input type="number" class="dca-quantity-input" placeholder="매 주기마다 추가할 수량" min="0.01" step="0.01"></td>
+                <td>
+                    <select class="dca-country-input">
+                        <option value="미국">미국</option>
+                        <option value="한국">한국</option>
+                    </select>
+                </td>
+                <td>
+                    <select class="dca-frequency-input">
+                        <option value="weekly">매주</option>
+                        <option value="monthly">매월</option>
+                        <option value="quarterly">매분기</option>
+                    </select>
+                </td>
+                <td><button type="button" class="delete-row-btn" onclick="deleteDcaRow(this)">삭제</button></td>
+            `;
+            tbody.appendChild(newRow);
+        }
+
+        // 적립식 투자 행 삭제
+        function deleteDcaRow(button) {
+            const tbody = document.getElementById('dcaInputTableBody');
+            const dcaSection = document.getElementById('dcaSection');
+            
+            button.closest('tr').remove();
+            
+            // 모든 행이 삭제되면 섹션 숨기기
+            const rows = tbody.getElementsByClassName('dca-row');
+            if (rows.length === 0) {
+                dcaSection.style.display = 'none';
+            }
         }
 
         // 수동 입력 데이터를 CSV 형식으로 변환
@@ -1190,14 +1565,27 @@
                 const ticker = row.querySelector('.ticker-input').value.trim();
                 const quantity = row.querySelector('.quantity-input').value.trim();
                 const country = row.querySelector('.country-input').value;
-                const isCash = row.querySelector('.cash-input').checked;
 
                 if (ticker && quantity) {
                     hasData = true;
-                    const assetClass = isCash ? '현금' : '주식';
+                    const assetClass = '주식';  // 모든 행은 주식으로 처리
                     csvLines.push(`${ticker},${quantity},${country},${assetClass}`);
                 }
             });
+
+            // 현금 추가
+            const cashKRW = parseFloat(document.getElementById('cashKRW').value) || 0;
+            const cashUSD = parseFloat(document.getElementById('cashUSD').value) || 0;
+
+            if (cashKRW > 0) {
+                hasData = true;
+                csvLines.push(`KRW,${cashKRW},한국,현금`);
+            }
+
+            if (cashUSD > 0) {
+                hasData = true;
+                csvLines.push(`USD,${cashUSD},미국,현금`);
+            }
 
             if (!hasData) {
                 return null;
@@ -1205,21 +1593,6 @@
 
             return csvLines.join('\n');
         }
-
-        // 초기 이벤트 리스너 설정 (현금/국가 변경)
-        document.addEventListener('DOMContentLoaded', function() {
-            const tbody = document.getElementById('manualInputTableBody');
-            tbody.querySelectorAll('.cash-input').forEach(cb => {
-                cb.addEventListener('change', function() {
-                    handleCashChangeWithStep(this);
-                });
-            });
-            tbody.querySelectorAll('.country-input').forEach(select => {
-                select.addEventListener('change', function() {
-                    updateQuantityStep(this);
-                });
-            });
-        });
 
         // 캐시 통계 로드
         async function loadCacheStats() {
@@ -1402,32 +1775,21 @@
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
 
-            // 입력 모드에 따라 처리
+            // 항상 수동 입력 모드로 처리 (CSV는 이미 파싱되어 폼에 채워져 있음)
             let csvContent = null;
             let fileToUpload = null;
 
-            if (currentInputMode === 'manual') {
-                // 수동 입력 모드: CSV 생성
-                csvContent = convertManualInputToCSV();
-                if (!csvContent) {
-                    alert('최소 1개의 종목을 입력해주세요.');
-                    return;
-                }
-                console.log('📝 Manual input CSV:', csvContent);
-                
-                // CSV를 Blob으로 변환하여 파일처럼 처리
-                const blob = new Blob([csvContent], { type: 'text/csv' });
-                fileToUpload = new File([blob], 'manual_input.csv', { type: 'text/csv' });
-            } else {
-                // CSV 업로드 모드: 파일 확인
-                const fileInput = document.getElementById('csvFile');
-                if (!fileInput.files || fileInput.files.length === 0) {
-                    alert('CSV 파일을 선택해주세요.');
-                    return;
-                }
-                fileToUpload = fileInput.files[0];
-                console.log('📁 Selected file:', fileToUpload.name);
+            // 수동 입력 모드: CSV 생성
+            csvContent = convertManualInputToCSV();
+            if (!csvContent) {
+                alert('최소 1개의 종목을 입력해주세요.');
+                return;
             }
+            console.log('📝 Manual input CSV:', csvContent);
+            
+            // CSV를 Blob으로 변환하여 파일처럼 처리
+            const blob = new Blob([csvContent], { type: 'text/csv' });
+            fileToUpload = new File([blob], 'manual_input.csv', { type: 'text/csv' });
 
             // UI 초기화
             error.style.display = 'none';
@@ -1461,6 +1823,30 @@
             }
             
             formData.append('base_currency', document.getElementById('baseCurrency').value);
+            
+            // 적립식 투자 데이터 추가
+            const dcaRows = document.querySelectorAll('#dcaInputTableBody .dca-row');
+            const dcaData = [];
+            dcaRows.forEach(row => {
+                const ticker = row.querySelector('.dca-ticker-input').value.trim();
+                const quantity = row.querySelector('.dca-quantity-input').value.trim();
+                const country = row.querySelector('.dca-country-input').value;
+                const frequency = row.querySelector('.dca-frequency-input').value;
+                
+                if (ticker && quantity) {
+                    dcaData.push({
+                        ticker: ticker,
+                        quantity: parseFloat(quantity),
+                        country: country,
+                        frequency: frequency
+                    });
+                }
+            });
+            
+            if (dcaData.length > 0) {
+                formData.append('dca_data', JSON.stringify(dcaData));
+                console.log('📈 DCA data:', dcaData);
+            }
             
             // FormData 내용 확인 (디버깅용)
             console.log('📤 Sending data:');
@@ -1497,11 +1883,15 @@
                 }
                 
                 // 분석 결과 저장 (저장 버튼용)
+                // DCA가 적용된 최종 포트폴리오 CSV 사용
                 let csvContentForSave;
-                if (currentInputMode === 'manual') {
-                    csvContentForSave = csvContent;
+                if (data.final_portfolio_csv) {
+                    // 백엔드에서 DCA가 적용된 최종 포트폴리오를 받음
+                    csvContentForSave = data.final_portfolio_csv;
+                    console.log('📊 Using final portfolio CSV (with DCA applied)');
                 } else {
-                    csvContentForSave = await fileToUpload.text();
+                    // 항상 수동 입력에서 생성된 CSV 사용
+                    csvContentForSave = csvContent;
                 }
 
                 currentAnalysisData = {
@@ -1525,12 +1915,8 @@
                 // 로그인 상태에 따라 UI 업데이트
                 updateUIBasedOnLogin();
                 
-                // 직접 입력 모드인 경우 CSV 내보내기 버튼 표시
-                if (currentInputMode === 'manual') {
-                    document.getElementById('exportSection').style.display = 'block';
-                } else {
-                    document.getElementById('exportSection').style.display = 'none';
-                }
+                // 항상 CSV 내보내기 버튼 표시 (수동 입력 모드)
+                document.getElementById('exportSection').style.display = 'block';
 
             } catch (err) {
                 console.error('❌ Error:', err);
@@ -2154,7 +2540,7 @@
             const loadingState = document.getElementById('aiLoadingState');
             const contentDiv = document.getElementById('aiAnalysisContent');
             
-            modal.style.display = 'block';
+            openAIModal();
             
             // 캐시된 결과가 있으면 바로 표시
             if (aiAnalysisResultCache) {
@@ -2188,7 +2574,7 @@
                 
                 // 로그인 체크
                 if (response.status === 401) {
-                    modal.style.display = 'none';
+                    closeAIModal();
                     alert('🔒 ' + data.error);
                     window.location.href = '/login';
                     return;
@@ -2196,7 +2582,7 @@
                 
                 // Rate limiting 처리
                 if (response.status === 429 || data.rate_limited) {
-                    throw new Error(data.error || 'AI 분석은 3분에 1번만 가능합니다.');
+                    throw new Error(data.error || 'AI 분석은 1분에 1번만 가능합니다.');
                 }
                 
                 if (!response.ok || !data.success) {
@@ -2242,6 +2628,15 @@
         
         function closeAIModal() {
             document.getElementById('aiAnalysisModal').style.display = 'none';
+            // 모바일에서 body 스크롤 복원
+            document.body.style.overflow = '';
+        }
+        
+        // 모달 열기 헬퍼 함수
+        function openAIModal() {
+            document.getElementById('aiAnalysisModal').style.display = 'block';
+            // 모바일에서 배경 스크롤 방지
+            document.body.style.overflow = 'hidden';
         }
         
         // 모달 외부 클릭시 닫기

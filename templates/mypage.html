@@ -451,6 +451,7 @@
                 <div class="navbar-links">
                     <a href="/" class="navbar-link">분석하기</a>
                     <a href="/ranking" class="navbar-link">랭킹보기</a>
+                    <a href="/exchange-rate" class="navbar-link">환율</a>
                     <a href="/mypage" class="navbar-link active" id="authLink">마이페이지</a>
                 </div>
             </div>
@@ -482,6 +483,11 @@
                         <span class="info-value" id="accountType">-</span>
                     </div>
                     <div class="info-row logout-btn">
+                        {% if is_admin %}
+                        <button class="btn btn-primary" onclick="location.href='/admin'" style="margin-right: 10px;">
+                            🔧 Admin
+                        </button>
+                        {% endif %}
                         <button class="btn btn-danger" onclick="logout()">로그아웃</button>
                     </div>
                 </div>

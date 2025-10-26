@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}포트폴리오 성과 분석기{% endblock %}</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .card {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            margin-bottom: 20px;
+        }
+
+        /* 네비게이션 바 스타일 */
+        .navbar {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 0;
+            margin: 0 0 0 0;
+            border-radius: 15px 15px 0 0;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .navbar-content {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 15px 30px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .navbar-title {
+            color: white;
+            font-size: 24px;
+            font-weight: 700;
+            text-decoration: none;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+
+        .navbar-title:hover {
+            opacity: 0.9;
+        }
+
+        .navbar-links {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .navbar-link {
+            color: white;
+            text-decoration: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-weight: 500;
+            transition: background 0.2s;
+            white-space: nowrap;
+        }
+
+        .navbar-link:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .navbar-link.active {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        /* 모바일 반응형 - 헤더 */
+        @media (max-width: 768px) {
+            .navbar-content {
+                padding: 10px 15px;
+            }
+
+            .navbar-title {
+                font-size: 18px;
+            }
+
+            .navbar-links {
+                gap: 5px;
+            }
+
+            .navbar-link {
+                padding: 6px 12px;
+                font-size: 14px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .navbar-title {
+                font-size: 16px;
+            }
+
+            .navbar-link {
+                padding: 5px 10px;
+                font-size: 12px;
+            }
+        }
+
+        {% block extra_styles %}{% endblock %}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- 네비게이션 바 -->
+        <div class="navbar">
+            <div class="navbar-content">
+                <a href="/" class="navbar-title">📊 포트폴리오 성과 분석기</a>
+                <div class="navbar-links">
+                    <a href="/" class="navbar-link {% if active_page == 'analyze' %}active{% endif %}">분석하기</a>
+                    <a href="/ranking" class="navbar-link {% if active_page == 'ranking' %}active{% endif %}">랭킹보기</a>
+                    <a href="/exchange-rate" class="navbar-link {% if active_page == 'exchange-rate' %}active{% endif %}">환율</a>
+                    <a href="/login" class="navbar-link" id="authLink">로그인</a>
+                </div>
+            </div>
+        </div>
+
+        {% block content %}{% endblock %}
+    </div>
+
+    <script>
+        // 로그인 상태 확인 및 UI 업데이트
+        async function checkLoginStatus() {
+            try {
+                const response = await fetch('/api/me');
+                const data = await response.json();
+                
+                const authLink = document.getElementById('authLink');
+                if (data.logged_in) {
+                    authLink.textContent = `👤 ${data.user.nickname}`;
+                    authLink.href = '/mypage';
+                    {% if active_page == 'mypage' %}
+                    authLink.classList.add('active');
+                    {% endif %}
+                } else {
+                    authLink.textContent = '로그인';
+                    authLink.href = '/login';
+                    {% if active_page == 'login' %}
+                    authLink.classList.add('active');
+                    {% endif %}
+                }
+            } catch (error) {
+                console.error('로그인 상태 확인 실패:', error);
+            }
+        }
+
+        // 페이지 로드 시 로그인 상태 확인
+        checkLoginStatus();
+    </script>
+
+    {% block extra_scripts %}{% endblock %}
+</body>
+</html>
